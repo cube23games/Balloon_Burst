@@ -35,7 +35,7 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late final Ticker _ticker;
   late final GameController _controller;
   late final WorldSurgePulse _surge;
@@ -49,6 +49,11 @@ class _GameScreenState extends State<GameScreen>
   double _fps = 0.0;
   bool _canCountMisses = false;
 
+  bool _isLifecyclePaused = false;
+  DateTime? _resumeGraceUntil;
+
+  static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
+
   static const double baseRiseSpeed = 120.0;
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
@@ -56,6 +61,8 @@ class _GameScreenState extends State<GameScreen>
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
 
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
@@ -73,9 +80,94 @@ class _GameScreenState extends State<GameScreen>
     _ticker = createTicker(_onTick)..start();
   }
 
+  int _resumeSecondsRemaining() {
+    final until = _resumeGraceUntil;
+    if (until == null) return 0;
+
+    final remainingMs = until.difference(DateTime.now()).inMilliseconds;
+    if (remainingMs <= 0) return 0;
+
+    return (remainingMs / 1000).ceil().clamp(1, 3);
+  }
+
+  bool get _isInResumeGrace {
+    final until = _resumeGraceUntil;
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  void _pauseForLifecycle(AppLifecycleState state) {
+    if (_isLifecyclePaused) return;
+
+    _isLifecyclePaused = true;
+    _resumeGraceUntil = null;
+    _lastTime = Duration.zero;
+
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+
+    widget.gameState.log(
+      'SYSTEM: lifecycle pause ($state)',
+      type: DebugEventType.system,
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  void _resumeWithGrace() {
+    if (_controller.isEnded) return;
+
+    _isLifecyclePaused = false;
+    _resumeGraceUntil = DateTime.now().add(_resumeGraceDuration);
+    _lastTime = Duration.zero;
+
+    widget.gameState.log(
+      'SYSTEM: lifecycle resume grace',
+      type: DebugEventType.system,
+    );
+
+    if (!_ticker.isActive) {
+      _ticker.start();
+    }
+
+    if (mounted) setState(() {});
+
+    Future.delayed(_resumeGraceDuration + const Duration(milliseconds: 80), () {
+      if (!mounted) return;
+      if (_resumeGraceUntil != null && !_isInResumeGrace) {
+        setState(() {
+          _resumeGraceUntil = null;
+          _lastTime = Duration.zero;
+        });
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _resumeWithGrace();
+    } else {
+      _pauseForLifecycle(state);
+    }
+  }
+
   void _onTick(Duration elapsed) {
-    if (_controller.isEnded) {
+    if (_controller.isEnded || _isLifecyclePaused) {
       _lastTime = elapsed;
+      return;
+    }
+
+    if (_resumeGraceUntil != null) {
+      if (_isInResumeGrace) {
+        _lastTime = elapsed;
+        if (mounted) setState(() {});
+        return;
+      }
+
+      _resumeGraceUntil = null;
+      _lastTime = elapsed;
+      if (mounted) setState(() {});
       return;
     }
 
@@ -151,6 +243,8 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _handleTap(TapDownDetails details) {
+    if (_isLifecyclePaused || _resumeGraceUntil != null) return;
+
     if (_controller.isEnded) return;
     if (!_canCountMisses) return;
 
@@ -184,6 +278,13 @@ class _GameScreenState extends State<GameScreen>
     widget.spawner.resetForNewRun();
     _surge.reset();
 
+    _isLifecyclePaused = false;
+    _resumeGraceUntil = null;
+
+    if (!_ticker.isActive) {
+      _ticker.start();
+    }
+
     widget.gameState.clearLogs();
     widget.gameState.log(
       'SYSTEM: run reset',
@@ -204,9 +305,80 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _surge.dispose();
     _ticker.dispose();
     super.dispose();
+  }
+
+  Widget _buildLifecyclePauseOverlay() {
+    if (!_isLifecyclePaused && _resumeGraceUntil == null) {
+      return const SizedBox.shrink();
+    }
+
+    final paused = _isLifecyclePaused;
+    final seconds = _resumeSecondsRemaining();
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.black.withOpacity(0.48),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xEE08121C),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: const Color(0x6600D8FF),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.45),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    paused ? 'PAUSED' : 'GET READY',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 24,
+                      letterSpacing: 1.4,
+                      shadows: [
+                        Shadow(
+                          color: Color(0xFF00D8FF),
+                          blurRadius: 14,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    paused
+                        ? 'Game paused while app is inactive'
+                        : 'Resuming in $seconds',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -241,6 +413,7 @@ class _GameScreenState extends State<GameScreen>
                 recentAccuracy: _controller.accuracy01,
                 recentMisses: widget.spawner.recentMisses,
               ),
+              _buildLifecyclePauseOverlay(),
               if (_controller.isEnded)
                 RunEndOverlay(
                   state: RunEndState.fromController(_controller),
