@@ -760,8 +760,6 @@ class _GameScreenState extends State<GameScreen>
     _leaderboardSubmitted = false;
     _leaderboardPlacement = null;
 
-    _inactivePauseTimer?.cancel();
-    _inactivePauseTimer = null;
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
     _resumeGraceUntil = null;
@@ -829,7 +827,6 @@ class _GameScreenState extends State<GameScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _inactivePauseTimer?.cancel();
     _shieldFlashTimer?.cancel();
     _reviveProtectionTimer?.cancel();
     _walletPulse.dispose();
