@@ -55,7 +55,6 @@ class _GameScreenState extends State<GameScreen>
 
   Timer? _shieldFlashTimer;
   Timer? _reviveProtectionTimer;
-  Timer? _inactivePauseTimer;
 
   late final AnimationController _walletPulse;
   late final Animation<double> _walletScale;
@@ -99,7 +98,6 @@ class _GameScreenState extends State<GameScreen>
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
-  static const Duration _inactiveOverlayDelay = Duration(milliseconds: 650);
   static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
   static const int _reviveCost = 50;
@@ -194,33 +192,17 @@ class _GameScreenState extends State<GameScreen>
     return until != null && DateTime.now().isBefore(until);
   }
 
-  void _startDelayedLifecycleOverlay() {
-    _inactivePauseTimer?.cancel();
-    _inactivePauseTimer = Timer(_inactiveOverlayDelay, () {
-      if (!mounted || !_isLifecyclePaused || _isRunEnded) return;
-
-      setState(() {
-        _showLifecyclePauseOverlay = true;
-      });
-    });
-  }
-
   void _pauseForLifecycle(
     AppLifecycleState state, {
     required bool showOverlayImmediately,
   }) {
     if (_isRunEnded) return;
 
-    _inactivePauseTimer?.cancel();
-    _inactivePauseTimer = null;
-
     if (_isLifecyclePaused) {
       if (showOverlayImmediately && !_showLifecyclePauseOverlay) {
         setState(() {
           _showLifecyclePauseOverlay = true;
         });
-      } else if (!showOverlayImmediately && !_showLifecyclePauseOverlay) {
-        _startDelayedLifecycleOverlay();
       }
       return;
     }
@@ -235,21 +217,16 @@ class _GameScreenState extends State<GameScreen>
     }
 
     widget.gameState.log(
-      'SYSTEM: lifecycle freeze ($state)',
+      showOverlayImmediately
+          ? 'SYSTEM: lifecycle visible pause ($state)'
+          : 'SYSTEM: lifecycle silent freeze ($state)',
       type: DebugEventType.system,
     );
-
-    if (!showOverlayImmediately) {
-      _startDelayedLifecycleOverlay();
-    }
 
     if (mounted) setState(() {});
   }
 
   void _resumeFromLifecyclePause() {
-    _inactivePauseTimer?.cancel();
-    _inactivePauseTimer = null;
-
     if (!_isLifecyclePaused || _isRunEnded) {
       return;
     }
@@ -284,8 +261,9 @@ class _GameScreenState extends State<GameScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
-      // Freeze immediately for safety, but delay the visible overlay so quick
-      // screenshot-style interruptions do not feel like a full pause.
+      // Screenshots and tiny system overlays can report inactive.
+      // Freeze immediately for fairness, but do not show PAUSED/GET READY
+      // unless Android later reports hidden/paused.
       _pauseForLifecycle(state, showOverlayImmediately: false);
       return;
     }
