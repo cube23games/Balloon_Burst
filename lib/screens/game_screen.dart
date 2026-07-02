@@ -261,10 +261,9 @@ class _GameScreenState extends State<GameScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
-      // Screenshots and tiny system overlays can report inactive.
-      // Freeze immediately for fairness, but do not show PAUSED/GET READY
-      // unless Android later reports hidden/paused.
-      _pauseForLifecycle(state, showOverlayImmediately: false);
+      // Ignore focus-loss blips entirely.
+      // Screenshots, tiny system overlays, and some notification flashes can
+      // report inactive even though the game is still visible.
       return;
     }
 
