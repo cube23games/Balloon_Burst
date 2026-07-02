@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:balloon_burst/audio/audio_player.dart';
 import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'package:balloon_burst/debug/debug_log.dart';
@@ -103,6 +104,9 @@ class _GameScreenState extends State<GameScreen>
   static const int _reviveCost = 50;
   static const int _tapJunkieVictoryPops = 500;
 
+  static const MethodChannel _nativeLifecycleChannel =
+      MethodChannel('com.cube23.balloonburst/lifecycle');
+
   bool get _isRunEnded => widget.engine.runLifecycle.state == RunState.ended;
 
   bool get _isGameplayFrozenByLifecycle =>
@@ -113,6 +117,7 @@ class _GameScreenState extends State<GameScreen>
     super.initState();
 
     WidgetsBinding.instance.addObserver(this);
+    _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
 
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
@@ -190,6 +195,48 @@ class _GameScreenState extends State<GameScreen>
   bool get _isInResumeGrace {
     final until = _resumeGraceUntil;
     return until != null && DateTime.now().isBefore(until);
+  }
+
+  Future<void> _handleNativeLifecycleCall(MethodCall call) async {
+    switch (call.method) {
+      case 'nativePause':
+        _pauseForNativeLifecycle('${call.arguments ?? 'native'}');
+        return;
+      case 'nativeResume':
+        _resumeFromLifecyclePause();
+        return;
+      default:
+        return;
+    }
+  }
+
+  void _pauseForNativeLifecycle(String reason) {
+    if (_isRunEnded) return;
+
+    if (_isLifecyclePaused) {
+      if (!_showLifecyclePauseOverlay) {
+        setState(() {
+          _showLifecyclePauseOverlay = true;
+        });
+      }
+      return;
+    }
+
+    _isLifecyclePaused = true;
+    _showLifecyclePauseOverlay = true;
+    _resumeGraceUntil = null;
+    _lastTime = Duration.zero;
+
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+
+    widget.gameState.log(
+      'SYSTEM: native lifecycle pause ($reason)',
+      type: DebugEventType.system,
+    );
+
+    if (mounted) setState(() {});
   }
 
   void _pauseForLifecycle(
@@ -825,6 +872,7 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    _nativeLifecycleChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     _shieldFlashTimer?.cancel();
     _reviveProtectionTimer?.cancel();
