@@ -47,13 +47,15 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
+class _GameScreenState extends State<GameScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late final Ticker _ticker;
   late final GameController _controller;
   late final WorldSurgePulse _surge;
 
   Timer? _shieldFlashTimer;
   Timer? _reviveProtectionTimer;
+  Timer? _inactivePauseTimer;
 
   late final AnimationController _walletPulse;
   late final Animation<double> _walletScale;
@@ -87,21 +89,31 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   int? _leaderboardPlacement;
   int _lastReportedWorld = 1;
 
+  bool _isLifecyclePaused = false;
+  DateTime? _resumeGraceUntil;
+
   late final AutoTapController _autoTapController;
 
   static const double baseRiseSpeed = 120.0;
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
+  static const Duration _inactivePauseDelay = Duration(milliseconds: 650);
+  static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
   static const int _reviveCost = 50;
   static const int _tapJunkieVictoryPops = 500;
 
   bool get _isRunEnded => widget.engine.runLifecycle.state == RunState.ended;
 
+  bool get _isGameplayFrozenByLifecycle =>
+      _isLifecyclePaused || _resumeGraceUntil != null;
+
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
 
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
@@ -166,10 +178,108 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (mounted) setState(() {});
   }
 
+  int _resumeSecondsRemaining() {
+    final until = _resumeGraceUntil;
+    if (until == null) return 0;
+
+    final remainingMs = until.difference(DateTime.now()).inMilliseconds;
+    if (remainingMs <= 0) return 0;
+
+    return (remainingMs / 1000).ceil().clamp(1, 3);
+  }
+
+  bool get _isInResumeGrace {
+    final until = _resumeGraceUntil;
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  void _pauseForLifecycle(AppLifecycleState state) {
+    if (_isRunEnded || _isLifecyclePaused) return;
+
+    _inactivePauseTimer?.cancel();
+    _inactivePauseTimer = null;
+
+    _isLifecyclePaused = true;
+    _resumeGraceUntil = null;
+    _lastTime = Duration.zero;
+
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+
+    widget.gameState.log(
+      'SYSTEM: lifecycle pause ($state)',
+      type: DebugEventType.system,
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  void _resumeFromLifecyclePause() {
+    _inactivePauseTimer?.cancel();
+    _inactivePauseTimer = null;
+
+    if (!_isLifecyclePaused || _isRunEnded) {
+      return;
+    }
+
+    _isLifecyclePaused = false;
+    _resumeGraceUntil = DateTime.now().add(_resumeGraceDuration);
+    _lastTime = Duration.zero;
+
+    widget.gameState.log(
+      'SYSTEM: lifecycle resume grace',
+      type: DebugEventType.system,
+    );
+
+    if (!_ticker.isActive) {
+      _ticker.start();
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _resumeFromLifecyclePause();
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      _inactivePauseTimer?.cancel();
+      _inactivePauseTimer = Timer(_inactivePauseDelay, () {
+        if (!mounted) return;
+        _pauseForLifecycle(state);
+      });
+      return;
+    }
+
+    _pauseForLifecycle(state);
+  }
+
   void _onTick(Duration elapsed) {
     if (_isRunEnded) {
       _lastTime = elapsed;
       _maybeSubmitLeaderboard();
+      if (mounted) setState(() {});
+      return;
+    }
+
+    if (_isLifecyclePaused) {
+      _lastTime = elapsed;
+      return;
+    }
+
+    if (_resumeGraceUntil != null) {
+      if (_isInResumeGrace) {
+        _lastTime = elapsed;
+        if (mounted) setState(() {});
+        return;
+      }
+
+      _resumeGraceUntil = null;
+      _lastTime = Duration.zero;
       if (mounted) setState(() {});
       return;
     }
@@ -322,7 +432,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ..mode = _autoTapModeFromIndex(widget.gameState.autoTapModeIndex);
 
     _autoTapController.update(
-      canTap: !_showIntro && !_isRunEnded && _canCountMisses,
+      canTap:
+          !_showIntro && !_isRunEnded && !_isGameplayFrozenByLifecycle && _canCountMisses,
       lastSize: _lastSize,
       balloons: _balloons,
       onTapAt: _handleAutoTapAt,
@@ -449,6 +560,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _handleTap(TapDownDetails details) {
     if (_showIntro) return;
+    if (_isGameplayFrozenByLifecycle) return;
     if (_isRunEnded || !_canCountMisses) return;
 
     final prevStreak = widget.engine.runLifecycle.getSnapshot().streak;
@@ -635,6 +747,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _leaderboardSubmitted = false;
     _leaderboardPlacement = null;
 
+    _inactivePauseTimer?.cancel();
+    _inactivePauseTimer = null;
+    _isLifecyclePaused = false;
+    _resumeGraceUntil = null;
+
+    if (!_ticker.isActive) {
+      _ticker.start();
+    }
+
     _controller.reset();
     widget.spawner.resetForNewRun();
     _surge.reset();
@@ -693,12 +814,86 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _inactivePauseTimer?.cancel();
     _shieldFlashTimer?.cancel();
     _reviveProtectionTimer?.cancel();
     _walletPulse.dispose();
     _surge.dispose();
     _ticker.dispose();
     super.dispose();
+  }
+
+  Widget _buildLifecyclePauseOverlay() {
+    if (_showIntro ||
+        _isRunEnded ||
+        (!_isLifecyclePaused && _resumeGraceUntil == null)) {
+      return const SizedBox.shrink();
+    }
+
+    final paused = _isLifecyclePaused;
+    final seconds = _resumeSecondsRemaining();
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.black.withOpacity(0.48),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xEE08121C),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: const Color(0x6600D8FF),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.45),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    paused ? 'PAUSED' : 'GET READY',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 24,
+                      letterSpacing: 1.4,
+                      shadows: [
+                        Shadow(
+                          color: Color(0xFF00D8FF),
+                          blurRadius: 14,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    paused
+                        ? 'Game paused while app is inactive'
+                        : 'Resuming in $seconds',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -791,6 +986,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 recentMisses: _controller.missCount,
                 streak: widget.engine.runLifecycle.getSnapshot().streak,
               ),
+              _buildLifecyclePauseOverlay(),
               if (_showIntro)
                 CarnivalIntroOverlay(
                   onComplete: () {
