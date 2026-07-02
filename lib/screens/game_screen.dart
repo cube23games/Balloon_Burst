@@ -90,6 +90,7 @@ class _GameScreenState extends State<GameScreen>
   int _lastReportedWorld = 1;
 
   bool _isLifecyclePaused = false;
+  bool _showLifecyclePauseOverlay = false;
   DateTime? _resumeGraceUntil;
 
   late final AutoTapController _autoTapController;
@@ -98,7 +99,7 @@ class _GameScreenState extends State<GameScreen>
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
-  static const Duration _inactivePauseDelay = Duration(milliseconds: 650);
+  static const Duration _inactiveOverlayDelay = Duration(milliseconds: 650);
   static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
   static const int _reviveCost = 50;
@@ -193,13 +194,39 @@ class _GameScreenState extends State<GameScreen>
     return until != null && DateTime.now().isBefore(until);
   }
 
-  void _pauseForLifecycle(AppLifecycleState state) {
-    if (_isRunEnded || _isLifecyclePaused) return;
+  void _startDelayedLifecycleOverlay() {
+    _inactivePauseTimer?.cancel();
+    _inactivePauseTimer = Timer(_inactiveOverlayDelay, () {
+      if (!mounted || !_isLifecyclePaused || _isRunEnded) return;
+
+      setState(() {
+        _showLifecyclePauseOverlay = true;
+      });
+    });
+  }
+
+  void _pauseForLifecycle(
+    AppLifecycleState state, {
+    required bool showOverlayImmediately,
+  }) {
+    if (_isRunEnded) return;
 
     _inactivePauseTimer?.cancel();
     _inactivePauseTimer = null;
 
+    if (_isLifecyclePaused) {
+      if (showOverlayImmediately && !_showLifecyclePauseOverlay) {
+        setState(() {
+          _showLifecyclePauseOverlay = true;
+        });
+      } else if (!showOverlayImmediately && !_showLifecyclePauseOverlay) {
+        _startDelayedLifecycleOverlay();
+      }
+      return;
+    }
+
     _isLifecyclePaused = true;
+    _showLifecyclePauseOverlay = showOverlayImmediately;
     _resumeGraceUntil = null;
     _lastTime = Duration.zero;
 
@@ -208,9 +235,13 @@ class _GameScreenState extends State<GameScreen>
     }
 
     widget.gameState.log(
-      'SYSTEM: lifecycle pause ($state)',
+      'SYSTEM: lifecycle freeze ($state)',
       type: DebugEventType.system,
     );
+
+    if (!showOverlayImmediately) {
+      _startDelayedLifecycleOverlay();
+    }
 
     if (mounted) setState(() {});
   }
@@ -223,12 +254,18 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
+    final shouldUseGrace = _showLifecyclePauseOverlay;
+
     _isLifecyclePaused = false;
-    _resumeGraceUntil = DateTime.now().add(_resumeGraceDuration);
+    _showLifecyclePauseOverlay = false;
+    _resumeGraceUntil =
+        shouldUseGrace ? DateTime.now().add(_resumeGraceDuration) : null;
     _lastTime = Duration.zero;
 
     widget.gameState.log(
-      'SYSTEM: lifecycle resume grace',
+      shouldUseGrace
+          ? 'SYSTEM: lifecycle resume grace'
+          : 'SYSTEM: lifecycle silent resume',
       type: DebugEventType.system,
     );
 
@@ -247,15 +284,13 @@ class _GameScreenState extends State<GameScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
-      _inactivePauseTimer?.cancel();
-      _inactivePauseTimer = Timer(_inactivePauseDelay, () {
-        if (!mounted) return;
-        _pauseForLifecycle(state);
-      });
+      // Freeze immediately for safety, but delay the visible overlay so quick
+      // screenshot-style interruptions do not feel like a full pause.
+      _pauseForLifecycle(state, showOverlayImmediately: false);
       return;
     }
 
-    _pauseForLifecycle(state);
+    _pauseForLifecycle(state, showOverlayImmediately: true);
   }
 
   void _onTick(Duration elapsed) {
@@ -750,6 +785,7 @@ class _GameScreenState extends State<GameScreen>
     _inactivePauseTimer?.cancel();
     _inactivePauseTimer = null;
     _isLifecyclePaused = false;
+    _showLifecyclePauseOverlay = false;
     _resumeGraceUntil = null;
 
     if (!_ticker.isActive) {
@@ -825,13 +861,16 @@ class _GameScreenState extends State<GameScreen>
   }
 
   Widget _buildLifecyclePauseOverlay() {
+    final shouldShowPausedOverlay =
+        _isLifecyclePaused && _showLifecyclePauseOverlay;
+
     if (_showIntro ||
         _isRunEnded ||
-        (!_isLifecyclePaused && _resumeGraceUntil == null)) {
+        (!shouldShowPausedOverlay && _resumeGraceUntil == null)) {
       return const SizedBox.shrink();
     }
 
-    final paused = _isLifecyclePaused;
+    final paused = shouldShowPausedOverlay;
     final seconds = _resumeSecondsRemaining();
 
     return Positioned.fill(
