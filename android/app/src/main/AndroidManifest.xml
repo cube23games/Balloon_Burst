@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.cube23.balloonburst">
 
+    <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+
     <application
         android:label="Balloon Burst"
         android:icon="@mipmap/ic_launcher">
