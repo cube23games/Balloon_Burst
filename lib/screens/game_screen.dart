@@ -205,6 +205,9 @@ class _GameScreenState extends State<GameScreen>
       case 'nativeResume':
         _resumeFromLifecyclePause();
         return;
+      case 'nativeResumeSilent':
+        _resumeFromNativeLifecycleSilently();
+        return;
       case 'nativeDebug':
         widget.gameState.log(
           'SYSTEM: native debug ${call.arguments ?? ''}',

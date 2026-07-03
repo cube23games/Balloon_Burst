@@ -1,10 +1,16 @@
 package com.cube23.balloonburst
 
+import android.app.Activity
+import android.database.ContentObserver
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.provider.MediaStore
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.Executor
 
 class MainActivity : FlutterActivity() {
     private val lifecycleChannelName = "com.cube23.balloonburst/lifecycle"
@@ -12,11 +18,18 @@ class MainActivity : FlutterActivity() {
     private var sentPaused = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var focusPauseRunnable: Runnable? = null
+    private val screenCaptureExecutor = Executor { command ->
+        mainHandler.post(command)
+    }
 
-    // Sustained focus loss only.
-    // Short focus-loss blips happen during screenshots, so do not pause instantly.
-    private val focusPauseDelayMs = 900L
+    private var focusPauseRunnable: Runnable? = null
+    private var screenCaptureCallback: Activity.ScreenCaptureCallback? = null
+    private var screenshotObserver: ContentObserver? = null
+
+    private var suppressFocusPauseUntilMs = 0L
+
+    private val focusPauseDelayMs = 250L
+    private val screenshotSuppressMs = 2600L
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -25,6 +38,16 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             lifecycleChannelName
         )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        registerScreenshotExceptionSources()
+    }
+
+    override fun onStop() {
+        unregisterScreenshotExceptionSources()
+        super.onStop()
     }
 
     override fun onUserLeaveHint() {
@@ -62,11 +85,105 @@ class MainActivity : FlutterActivity() {
         scheduleFocusPause()
     }
 
+    private fun registerScreenshotExceptionSources() {
+        registerScreenCaptureCallbackIfAvailable()
+        registerScreenshotMediaObserver()
+    }
+
+    private fun unregisterScreenshotExceptionSources() {
+        unregisterScreenCaptureCallbackIfAvailable()
+        unregisterScreenshotMediaObserver()
+    }
+
+    private fun registerScreenCaptureCallbackIfAvailable() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        if (screenCaptureCallback != null) return
+
+        try {
+            val callback = Activity.ScreenCaptureCallback {
+                markScreenshotException("screenCaptureCallback")
+            }
+
+            screenCaptureCallback = callback
+            registerScreenCaptureCallback(screenCaptureExecutor, callback)
+        } catch (_: Throwable) {
+            screenCaptureCallback = null
+        }
+    }
+
+    private fun unregisterScreenCaptureCallbackIfAvailable() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+
+        val callback = screenCaptureCallback ?: return
+
+        try {
+            unregisterScreenCaptureCallback(callback)
+        } catch (_: Throwable) {
+            // Safety cleanup only.
+        } finally {
+            screenCaptureCallback = null
+        }
+    }
+
+    private fun registerScreenshotMediaObserver() {
+        if (screenshotObserver != null) return
+
+        try {
+            val observer = object : ContentObserver(mainHandler) {
+                override fun onChange(selfChange: Boolean) {
+                    super.onChange(selfChange)
+                    markScreenshotException("mediaStoreImageChange")
+                }
+            }
+
+            screenshotObserver = observer
+            contentResolver.registerContentObserver(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                observer
+            )
+        } catch (_: Throwable) {
+            screenshotObserver = null
+        }
+    }
+
+    private fun unregisterScreenshotMediaObserver() {
+        val observer = screenshotObserver ?: return
+
+        try {
+            contentResolver.unregisterContentObserver(observer)
+        } catch (_: Throwable) {
+            // Safety cleanup only.
+        } finally {
+            screenshotObserver = null
+        }
+    }
+
+    private fun markScreenshotException(source: String) {
+        suppressFocusPauseUntilMs = SystemClock.uptimeMillis() + screenshotSuppressMs
+        cancelFocusPause()
+        sendNativeDebug("screenshotException=$source")
+
+        if (sentPaused) {
+            sentPaused = false
+            lifecycleChannel?.invokeMethod("nativeResumeSilent", null)
+        }
+    }
+
+    private fun isScreenshotExceptionActive(): Boolean {
+        return SystemClock.uptimeMillis() < suppressFocusPauseUntilMs
+    }
+
     private fun scheduleFocusPause() {
         cancelFocusPause()
 
         val runnable = Runnable {
-            sendNativePause("windowFocusLostSustained")
+            if (isScreenshotExceptionActive()) {
+                sendNativeDebug("focusPauseSuppressed=screenshot")
+                return@Runnable
+            }
+
+            sendNativePause("windowFocusLost")
         }
 
         focusPauseRunnable = runnable
@@ -79,6 +196,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun sendNativePause(reason: String) {
+        if (isScreenshotExceptionActive()) {
+            sendNativeDebug("nativePauseSuppressed=$reason")
+            return
+        }
+
         if (sentPaused) return
 
         sentPaused = true
