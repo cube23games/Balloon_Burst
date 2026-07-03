@@ -776,7 +776,8 @@ class _GameScreenState extends State<GameScreen>
 
     widget.engine.runLifecycle.report(PopEvent(points: 1));
 
-    Future.microtask(() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       AudioPlayerService.playPop();
     });
 

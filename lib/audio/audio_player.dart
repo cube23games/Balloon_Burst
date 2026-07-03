@@ -1,8 +1,11 @@
-import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 
 class AudioPlayerService {
   static bool _muted = false;
+
+  static DateTime? _lastPopSoundAt;
+  static const Duration _minPopSoundGap = Duration(milliseconds: 110);
+  static final AssetSource _popSource = AssetSource('audio/pop_mid.wav');
 
   static void setMuted(bool value) {
     _muted = value;
@@ -24,7 +27,7 @@ class AudioPlayerService {
   // PLAYER POOLS
   // ============================================================
 
-  static const int _popPoolSize = 8;
+  static const int _popPoolSize = 2;
   static const int _coinPoolSize = 4;
 
   static final List<AudioPlayer> _popPlayers = List.generate(
@@ -56,23 +59,25 @@ class AudioPlayerService {
   static void playPop() {
     if (_muted) return;
 
+    final now = DateTime.now();
+    final lastPopSoundAt = _lastPopSoundAt;
+
+    if (lastPopSoundAt != null &&
+        now.difference(lastPopSoundAt) < _minPopSoundGap) {
+      return;
+    }
+
+    _lastPopSoundAt = now;
+
     try {
       final player = _popPlayers[_popIndex];
       _popIndex = (_popIndex + 1) % _popPoolSize;
 
-      final pops = [
-        'audio/pop_low.wav',
-        'audio/pop_mid.wav',
-        'audio/pop_high.wav',
-      ];
-
-      final asset = pops[Random().nextInt(pops.length)];
-      final volume = 0.9 + Random().nextDouble() * 0.2;
-
-      // 🔥 FIRE AND FORGET (NO AWAIT)
+      // Fire and forget, but intentionally throttled.
+      // Background media playback can make rapid overlapping pop sounds hitch.
       player.play(
-        AssetSource(asset),
-        volume: volume,
+        _popSource,
+        volume: 0.66,
       );
     } catch (_) {}
   }
