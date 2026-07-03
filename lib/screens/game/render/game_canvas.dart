@@ -644,20 +644,14 @@ class _GameCanvasState extends State<GameCanvas>
                 ),
                 Positioned.fill(
                   child: RepaintBoundary(
-                    child: Transform.translate(
-                      offset: Offset(
-                        widget.popShake * sin(widget.surge.lightningT * 12),
-                        widget.popShake * cos(widget.surge.lightningT * 10),
-                      ),
-                      child: CustomPaint(
-                        isComplex: true,
-                        willChange: true,
-                        painter: BalloonPainter(
-                          widget.balloons,
-                          widget.gameState,
-                          widget.currentWorld,
-                          streak: widget.streak,
-                        ),
+                    child: CustomPaint(
+                      isComplex: true,
+                      willChange: true,
+                      painter: BalloonPainter(
+                        widget.balloons,
+                        widget.gameState,
+                        widget.currentWorld,
+                        streak: widget.streak,
                       ),
                     ),
                   ),
