@@ -689,12 +689,6 @@ class _GameScreenState extends State<GameScreen>
     final missesBefore = _controller.missCount;
 
     widget.engine.input.registerTap();
-    widget.gameState.tapPulse = true;
-    Future.delayed(const Duration(milliseconds: 32), () {
-      if (!mounted) return;
-      widget.gameState.tapPulse = false;
-    });
-
     TapHandler.handleTap(
       details: details,
       lastSize: _lastSize,

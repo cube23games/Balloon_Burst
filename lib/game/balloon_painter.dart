@@ -63,12 +63,6 @@ class BalloonPainter extends CustomPainter {
       textPainter.paint(canvas, offset);
     }
 
-    if (gameState.tapPulse) {
-      final pulsePaint = Paint()
-        ..color = const Color.fromARGB(28, 80, 160, 255);
-      canvas.drawRect(Offset.zero & size, pulsePaint);
-    }
-
     final centerX = size.width / 2;
 
     for (final balloon in balloons) {
