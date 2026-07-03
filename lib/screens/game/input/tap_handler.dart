@@ -10,6 +10,8 @@ import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/screens/game/effects/world_surge_pulse.dart';
 
 class TapHandler {
+  static const bool _verboseTapLogging = false;
+
   static void handleTap({
     required TapDownDetails details,
     required Size lastSize,
@@ -111,9 +113,11 @@ class TapHandler {
 
       if (bestHitDist != null && bestHitDist <= balloonRadius * 0.45) {
         perfectHit = true;
-        gameState.log(
-          'PERFECT HIT dist=${bestHitDist.toStringAsFixed(1)}',
-        );
+        if (_verboseTapLogging) {
+          gameState.log(
+            'PERFECT HIT dist=${bestHitDist.toStringAsFixed(1)}',
+          );
+        }
       }
 
       spawner.registerPop(gameState);

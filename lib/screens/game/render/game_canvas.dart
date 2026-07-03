@@ -359,24 +359,9 @@ class _GameCanvasState extends State<GameCanvas>
     if (widget.particles.isEmpty) return const SizedBox.shrink();
 
     return IgnorePointer(
-      child: Stack(
-        children: widget.particles.map((p) {
-          return Positioned(
-            left: p.x,
-            top: p.y,
-            child: Opacity(
-              opacity: p.opacity,
-              child: Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: p.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+      child: CustomPaint(
+        painter: _ParticlesPainter(widget.particles),
+        size: Size.infinite,
       ),
     );
   }
@@ -688,6 +673,27 @@ class _GameCanvasState extends State<GameCanvas>
       ),
     );
   }
+}
+
+class _ParticlesPainter extends CustomPainter {
+  final List<PopParticle> particles;
+
+  _ParticlesPainter(this.particles);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    for (final p in particles) {
+      paint.color = p.color.withOpacity(p.opacity.clamp(0.0, 1.0));
+      canvas.drawCircle(Offset(p.x, p.y), 2.0, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlesPainter oldDelegate) => true;
 }
 
 class _ShockwavePainter extends CustomPainter {

@@ -79,9 +79,8 @@ class BalloonPainter extends CustomPainter {
       final radius =
           (baseBalloonRadius * cfg.visualScale * sizeVariance).roundToDouble();
 
-      final x =
-          (centerX + (balloon.xOffset * size.width * 0.5)).roundToDouble();
-      final y = balloon.y.roundToDouble();
+      final x = centerX + (balloon.xOffset * size.width * 0.5);
+      final y = balloon.y;
       final center = Offset(x, y);
 
       _paintStreakGlow(canvas, center, radius);

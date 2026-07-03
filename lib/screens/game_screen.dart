@@ -100,7 +100,7 @@ class _GameScreenState extends State<GameScreen>
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
   static const double _lagHitForgiveness = 32.0;
-  static const double _maxGameplayDt = 1.0 / 45.0;
+  static const double _maxGameplayDt = 1.0 / 30.0;
   static const double _lagFrameDt = 1.0 / 24.0;
   static const int _lagForgivenessTickWindow = 8;
   static const Duration _mercyWindow = Duration(milliseconds: 120);

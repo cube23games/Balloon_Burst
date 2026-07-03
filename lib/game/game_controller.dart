@@ -20,6 +20,8 @@ import 'package:balloon_burst/engine/speed/speed_curve.dart';
 /// - Fail conditions (miss limit, escape limit) are owned by TJ Engine
 /// ===============================================================
 class GameController {
+  static const bool _verboseTapLogging = false;
+
   final MomentumController momentum;
   final TierController tier;
   final SpeedCurve speed;
@@ -108,10 +110,12 @@ class GameController {
         _perfectHits++;
         _perfectChain++;
 
-        gameState.log(
-          'PERFECT TAP total=$_perfectHits chain=$_perfectChain',
-          type: DebugEventType.system,
-        );
+        if (_verboseTapLogging) {
+          gameState.log(
+            'PERFECT TAP total=$_perfectHits chain=$_perfectChain',
+            type: DebugEventType.system,
+          );
+        }
 
         if (_perfectChain == 3 ||
             _perfectChain == 5 ||
