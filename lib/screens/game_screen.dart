@@ -104,6 +104,10 @@ class _GameScreenState extends State<GameScreen>
   static const int _reviveCost = 50;
   static const int _tapJunkieVictoryPops = 500;
 
+  static const int _maxParticles = 96;
+  static const int _maxShockwaves = 14;
+  static const int _maxMissPopups = 6;
+
   static const MethodChannel _nativeLifecycleChannel =
       MethodChannel('com.cube23.balloonburst/lifecycle');
 
@@ -180,6 +184,18 @@ class _GameScreenState extends State<GameScreen>
 
     AudioPlayerService.playShieldBreak();
     if (mounted) setState(() {});
+  }
+
+  void _trimVisualEffects() {
+    _trimOldest(_particles, _maxParticles);
+    _trimOldest(_shockwaves, _maxShockwaves);
+    _trimOldest(_missPopups, _maxMissPopups);
+  }
+
+  void _trimOldest<T>(List<T> items, int maxItems) {
+    if (items.length <= maxItems) return;
+
+    items.removeRange(0, items.length - maxItems);
   }
 
   int _resumeSecondsRemaining() {
@@ -472,6 +488,7 @@ class _GameScreenState extends State<GameScreen>
       _missPopups[i] = _missPopups[i].advance(dt);
     }
     _missPopups.removeWhere((m) => !m.alive);
+    _trimVisualEffects();
 
     _popShake *= 0.85;
     if (_popShake < 0.1) {
@@ -736,6 +753,8 @@ class _GameScreenState extends State<GameScreen>
         widget.engine.runLifecycle.report(const MissEvent());
       }
 
+      _trimVisualEffects();
+
       return;
     }
 
@@ -805,6 +824,8 @@ class _GameScreenState extends State<GameScreen>
         ),
       );
     }
+
+    _trimVisualEffects();
 
     _popShake = _controller.lastTapPerfect
         ? (_controller.timingLockActive ? 14.0 : 10.0)
