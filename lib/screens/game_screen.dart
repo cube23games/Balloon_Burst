@@ -309,6 +309,26 @@ class _GameScreenState extends State<GameScreen>
     if (mounted) setState(() {});
   }
 
+  void _resumeFromNativeLifecycleSilently() {
+    if (_isRunEnded) return;
+
+    _isLifecyclePaused = false;
+    _showLifecyclePauseOverlay = false;
+    _resumeGraceUntil = null;
+    _lastTime = Duration.zero;
+
+    widget.gameState.log(
+      'SYSTEM: native lifecycle silent resume',
+      type: DebugEventType.system,
+    );
+
+    if (!_ticker.isActive) {
+      _ticker.start();
+    }
+
+    if (mounted) setState(() {});
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
