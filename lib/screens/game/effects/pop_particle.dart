@@ -49,10 +49,10 @@ class PopParticle {
   static List<PopParticle> burst(double x, double y) {
     final rand = Random();
 
-    int count = 10;
+    int count = 8;
 
-    if (rand.nextDouble() < 0.25) {
-      count = 18;
+    if (rand.nextDouble() < 0.18) {
+      count = 12;
     }
 
     return List.generate(count, (_) {

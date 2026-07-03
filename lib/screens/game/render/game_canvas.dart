@@ -370,36 +370,15 @@ class _GameCanvasState extends State<GameCanvas>
     if (widget.scoreBursts.isEmpty) return const SizedBox.shrink();
 
     return IgnorePointer(
-      child: Stack(
-        children: widget.scoreBursts.map((b) {
-          final t = b.t01;
-          final rise = b.isPerfect
-              ? 52.0 * Curves.easeOut.transform(t)
-              : 44.0 * Curves.easeOut.transform(t);
-          final fade = 1.0 - Curves.easeIn.transform(t);
-
-          return Positioned(
-            left: b.isPerfect ? b.x - 34 : b.x - 10,
-            top: (b.y - rise) - (b.isPerfect ? 22 : 18),
-            child: Opacity(
-              opacity: fade.clamp(0.0, 1.0),
-              child: Transform.scale(
-                scale: b.isPerfect ? (1.0 + ((1.0 - t) * 0.12)) : 1.0,
-                child: Text(
-                  b.isPerfect ? 'PERFECT!' : '+${b.value}',
-                  style: TextStyle(
-                    color: b.isPerfect ? _perfectBurstColor() : _burstColor(),
-                    fontSize: b.isPerfect ? 24 : 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: b.isPerfect ? 1.1 : 0.0,
-                    shadows:
-                        b.isPerfect ? _perfectBurstShadows() : _burstShadows(),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+      child: CustomPaint(
+        painter: _ScoreBurstsPainter(
+          bursts: widget.scoreBursts,
+          burstColor: _burstColor(),
+          perfectColor: _perfectBurstColor(),
+          burstShadows: _burstShadows(),
+          perfectShadows: _perfectBurstShadows(),
+        ),
+        size: Size.infinite,
       ),
     );
   }
@@ -673,6 +652,74 @@ class _GameCanvasState extends State<GameCanvas>
       ),
     );
   }
+}
+
+class _ScoreBurstsPainter extends CustomPainter {
+  final List<ScoreBurst> bursts;
+  final Color burstColor;
+  final Color perfectColor;
+  final List<Shadow> burstShadows;
+  final List<Shadow> perfectShadows;
+
+  _ScoreBurstsPainter({
+    required this.bursts,
+    required this.burstColor,
+    required this.perfectColor,
+    required this.burstShadows,
+    required this.perfectShadows,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final b in bursts) {
+      final t = b.t01;
+      final rise = b.isPerfect
+          ? 52.0 * Curves.easeOut.transform(t)
+          : 44.0 * Curves.easeOut.transform(t);
+      final fade = (1.0 - Curves.easeIn.transform(t)).clamp(0.0, 1.0);
+      final scale = b.isPerfect ? (1.0 + ((1.0 - t) * 0.12)) : 1.0;
+
+      final baseShadows = b.isPerfect ? perfectShadows : burstShadows;
+      final fadedShadows = baseShadows
+          .map(
+            (s) => Shadow(
+              color: s.color.withOpacity(fade),
+              blurRadius: s.blurRadius,
+              offset: s.offset,
+            ),
+          )
+          .toList(growable: false);
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: b.isPerfect ? 'PERFECT!' : '+${b.value}',
+          style: TextStyle(
+            color: (b.isPerfect ? perfectColor : burstColor).withOpacity(fade),
+            fontSize: b.isPerfect ? 24 : 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: b.isPerfect ? 1.1 : 0.0,
+            shadows: fadedShadows,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final left = b.isPerfect ? b.x - 34 : b.x - 10;
+      final top = (b.y - rise) - (b.isPerfect ? 22 : 18);
+
+      canvas.save();
+      canvas.translate(left + textPainter.width / 2, top + textPainter.height / 2);
+      canvas.scale(scale);
+      textPainter.paint(
+        canvas,
+        Offset(-textPainter.width / 2, -textPainter.height / 2),
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScoreBurstsPainter oldDelegate) => true;
 }
 
 class _ParticlesPainter extends CustomPainter {

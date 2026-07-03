@@ -878,34 +878,23 @@ class _GameScreenState extends State<GameScreen>
       isPerfect: _controller.lastTapPerfect,
     );
 
+    final popBurst = PopParticle.burst(p.dx, p.dy);
     _particles.addAll(
-      PopParticle.burst(p.dx, p.dy),
+      popBurst.take(_controller.timingLockActive ? 8 : 10),
     );
 
     if (_controller.timingLockActive) {
       final timingBurst = PopParticle.burst(p.dx, p.dy);
 
       _particles.addAll(
-        timingBurst.take(14).map((p) => PopParticle(
+        timingBurst.take(6).map((p) => PopParticle(
               x: p.x,
               y: p.y,
-              vx: p.vx * 0.48,
-              vy: p.vy * 0.48,
+              vx: p.vx * 0.42,
+              vy: p.vy * 0.42,
               age: p.age,
-              life: 0.28,
+              life: 0.22,
               color: const Color(0xFF7EEBFF),
-            )),
-      );
-
-      _particles.addAll(
-        timingBurst.skip(4).take(8).map((p) => PopParticle(
-              x: p.x,
-              y: p.y,
-              vx: p.vx * 0.22,
-              vy: p.vy * 0.22,
-              age: p.age,
-              life: 0.16,
-              color: Colors.white,
             )),
       );
     }
@@ -918,17 +907,6 @@ class _GameScreenState extends State<GameScreen>
         life: _controller.timingLockActive ? 0.46 : 0.35,
       ),
     );
-
-    if (_controller.timingLockActive) {
-      _shockwaves.add(
-        PopShockwave(
-          x: p.dx,
-          y: p.dy,
-          age: 0.06,
-          life: 0.30,
-        ),
-      );
-    }
 
     _trimVisualEffects();
 
