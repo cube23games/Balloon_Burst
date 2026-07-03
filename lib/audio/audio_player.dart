@@ -7,6 +7,11 @@ class AudioPlayerService {
   static const Duration _minPopSoundGap = Duration(milliseconds: 40);
   static final AssetSource _popSource = AssetSource('audio/pop_mid.wav');
 
+  static bool get muted => _muted;
+
+  static String get diagnosticSummary =>
+      'muted=$_muted popPool=$_popPoolSize popGapMs=${_minPopSoundGap.inMilliseconds}';
+
   static void setMuted(bool value) {
     _muted = value;
   }

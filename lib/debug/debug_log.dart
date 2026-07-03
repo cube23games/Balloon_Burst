@@ -7,13 +7,14 @@ enum DebugEventType {
   speed,
   system,
   accuracy,
+  perf,
 }
 
 class DebugLog {
   DebugLog._();
   static final DebugLog instance = DebugLog._();
 
-  static const int maxLogs = 300;
+  static const int maxLogs = 2500;
 
   final ListQueue<String> _logs = ListQueue();
   bool _debugFrozen = false;
@@ -25,6 +26,7 @@ class DebugLog {
     DebugEventType.speed,
     DebugEventType.system,
     DebugEventType.accuracy,
+    DebugEventType.perf,
   };
 
   bool get debugFrozen => _debugFrozen;
