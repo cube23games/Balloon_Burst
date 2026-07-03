@@ -29,7 +29,7 @@ class RunEndOverlay extends StatefulWidget {
 }
 
 class _RunEndOverlayState extends State<RunEndOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const int _reviveCost = 50;
 
   int _visibleRewardRows = 0;
@@ -788,6 +788,7 @@ class _RunEndOverlayState extends State<RunEndOverlay>
 
     _coinController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
+        if (!mounted) return;
         setState(() => _rewardSparkle = true);
 
         Future.delayed(const Duration(milliseconds: 1000), () {
