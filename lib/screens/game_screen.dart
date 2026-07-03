@@ -130,6 +130,7 @@ class _GameScreenState extends State<GameScreen>
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
@@ -940,6 +941,7 @@ class _GameScreenState extends State<GameScreen>
   @override
   void dispose() {
     _nativeLifecycleChannel.setMethodCallHandler(null);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     WidgetsBinding.instance.removeObserver(this);
     _shieldFlashTimer?.cancel();
     _reviveProtectionTimer?.cancel();

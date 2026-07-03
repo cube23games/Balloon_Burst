@@ -43,6 +43,7 @@ class BalloonSpawner {
 
   // Vertical stacking on entry
   static const double burstSpacingY = 26.0;
+  static const double spawnEntryPaddingY = 64.0;
 
   // Cluster feel — intentionally aggressive for stronger left/right scan pressure.
   static const double clusterSpread = 0.21;
@@ -112,7 +113,7 @@ class BalloonSpawner {
       final int index = _spawnCount++;
 
       final double spawnY =
-          viewportHeight + burstSpacingY * (count - 1 - i);
+          viewportHeight + spawnEntryPaddingY + burstSpacingY * (count - 1 - i);
 
       final double jitter = (_rng.nextDouble() * 2 - 1) * clusterJitter;
 

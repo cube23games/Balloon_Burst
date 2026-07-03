@@ -4,7 +4,7 @@ class AudioPlayerService {
   static bool _muted = false;
 
   static DateTime? _lastPopSoundAt;
-  static const Duration _minPopSoundGap = Duration(milliseconds: 110);
+  static const Duration _minPopSoundGap = Duration(milliseconds: 40);
   static final AssetSource _popSource = AssetSource('audio/pop_mid.wav');
 
   static void setMuted(bool value) {
@@ -27,7 +27,7 @@ class AudioPlayerService {
   // PLAYER POOLS
   // ============================================================
 
-  static const int _popPoolSize = 2;
+  static const int _popPoolSize = 4;
   static const int _coinPoolSize = 4;
 
   static final List<AudioPlayer> _popPlayers = List.generate(
