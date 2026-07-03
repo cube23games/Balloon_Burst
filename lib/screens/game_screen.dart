@@ -84,6 +84,7 @@ class _GameScreenState extends State<GameScreen>
   bool _showShieldFlash = false;
 
   double _fps = 0.0;
+  int _lagForgivenessTicks = 0;
 
   bool _leaderboardSubmitted = false;
   int? _leaderboardPlacement;
@@ -98,6 +99,10 @@ class _GameScreenState extends State<GameScreen>
   static const double baseRiseSpeed = 120.0;
   static const double balloonRadius = 16.0;
   static const double hitForgiveness = 18.0;
+  static const double _lagHitForgiveness = 32.0;
+  static const double _maxGameplayDt = 1.0 / 45.0;
+  static const double _lagFrameDt = 1.0 / 24.0;
+  static const int _lagForgivenessTickWindow = 8;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
   static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
@@ -115,6 +120,9 @@ class _GameScreenState extends State<GameScreen>
 
   bool get _isGameplayFrozenByLifecycle =>
       _isLifecyclePaused || _resumeGraceUntil != null;
+
+  double get _effectiveHitForgiveness =>
+      _lagForgivenessTicks > 0 ? _lagHitForgiveness : hitForgiveness;
 
   @override
   void initState() {
@@ -388,13 +396,21 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
-    final dt = (_lastTime == Duration.zero)
+    final rawDt = (_lastTime == Duration.zero)
         ? 0.016
         : (elapsed - _lastTime).inMicroseconds / 1e6;
 
     _lastTime = elapsed;
 
-    final instFps = dt > 0 ? (1.0 / dt) : 0.0;
+    final dt = rawDt.clamp(0.0, _maxGameplayDt).toDouble();
+
+    if (rawDt >= _lagFrameDt) {
+      _lagForgivenessTicks = _lagForgivenessTickWindow;
+    } else if (_lagForgivenessTicks > 0) {
+      _lagForgivenessTicks--;
+    }
+
+    final instFps = rawDt > 0 ? (1.0 / rawDt) : 0.0;
     _fps = (_fps == 0.0) ? instFps : (_fps * 0.9 + instFps * 0.1);
     widget.gameState.viewportHeight = _lastSize.height;
 
@@ -687,7 +703,7 @@ class _GameScreenState extends State<GameScreen>
       controller: _controller,
       surge: _surge,
       balloonRadius: balloonRadius,
-      hitForgiveness: hitForgiveness,
+      hitForgiveness: _effectiveHitForgiveness,
     );
 
     final missesAfter = _controller.missCount;
