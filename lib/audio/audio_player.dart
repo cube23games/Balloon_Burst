@@ -1,17 +1,27 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 
 class AudioPlayerService {
   static bool _muted = false;
 
   static DateTime? _lastPopSoundAt;
   static const Duration _minPopSoundGap = Duration(milliseconds: 70);
-  static final AssetSource _popSource = AssetSource('audio/pop_mid.wav');
+  static final List<AssetSource> _popSources = [
+    AssetSource('audio/pop_low.wav'),
+    AssetSource('audio/pop_mid.wav'),
+    AssetSource('audio/pop_high.wav'),
+  ];
   static const double _popVolume = 0.66;
+
+  static const MethodChannel _nativeAudioChannel =
+      MethodChannel('com.cube23.balloonburst/audio');
+  static bool _nativePopAvailable = true;
+  static int _popVariantIndex = 0;
 
   static bool get muted => _muted;
 
   static String get diagnosticSummary =>
-      'muted=$_muted popPool=$_popPoolSize popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume';
+      'muted=$_muted popPool=$_popPoolSize popVariants=${_popSources.length} popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume nativePop=$_nativePopAvailable';
 
   static void setMuted(bool value) {
     _muted = value;
@@ -75,14 +85,41 @@ class AudioPlayerService {
 
     _lastPopSoundAt = now;
 
+    if (_nativePopAvailable) {
+      try {
+        _nativeAudioChannel
+            .invokeMethod<bool>('playPop', <String, Object>{
+              'volume': _popVolume,
+            })
+            .then<void>((played) {
+              if (played != true) {
+                _playPopWithAudioPlayer();
+              }
+            })
+            .catchError((_) {
+              _nativePopAvailable = false;
+              _playPopWithAudioPlayer();
+            });
+        return;
+      } catch (_) {
+        _nativePopAvailable = false;
+      }
+    }
+
+    _playPopWithAudioPlayer();
+  }
+
+  static void _playPopWithAudioPlayer() {
     try {
       final player = _popPlayers[_popIndex];
-      _popIndex = (_popIndex + 1) % _popPoolSize;
+      final source = _popSources[_popVariantIndex];
 
-      // Fire and forget, but intentionally throttled.
-      // Background media playback can make rapid overlapping pop sounds hitch.
+      _popIndex = (_popIndex + 1) % _popPoolSize;
+      _popVariantIndex = (_popVariantIndex + 1) % _popSources.length;
+
+      // Fallback path. Native Android SoundPool is preferred for rapid pops.
       player.play(
-        _popSource,
+        source,
         volume: _popVolume,
       );
     } catch (_) {}

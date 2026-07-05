@@ -2,19 +2,41 @@ package com.cube23.balloonburst
 
 import android.app.Activity
 import android.database.ContentObserver
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
+import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executor
+import kotlin.random.Random
 
 class MainActivity : FlutterActivity() {
     private val lifecycleChannelName = "com.cube23.balloonburst/lifecycle"
+    private val audioChannelName = "com.cube23.balloonburst/audio"
+
     private var lifecycleChannel: MethodChannel? = null
+    private var audioChannel: MethodChannel? = null
+
+    private var popSoundPool: SoundPool? = null
+
+    private val popSoundAssetPaths = listOf(
+        "assets/audio/pop_low.wav",
+        "assets/audio/pop_mid.wav",
+        "assets/audio/pop_high.wav"
+    )
+
+    private var popSoundIds = IntArray(popSoundAssetPaths.size)
+    private var popSoundLoaded = BooleanArray(popSoundAssetPaths.size)
+    private var lastNativePopSoundId = 0
+
+    private val nativePopMaxStreams = 4
+
     private var sentPaused = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -38,6 +60,8 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             lifecycleChannelName
         )
+
+        configureNativeAudio(flutterEngine)
     }
 
     override fun onStart() {
@@ -48,6 +72,13 @@ class MainActivity : FlutterActivity() {
     override fun onStop() {
         unregisterScreenshotExceptionSources()
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        releaseNativeAudio()
+        audioChannel = null
+        lifecycleChannel = null
+        super.onDestroy()
     }
 
     override fun onUserLeaveHint() {
@@ -83,6 +114,100 @@ class MainActivity : FlutterActivity() {
         }
 
         scheduleFocusPause()
+    }
+
+    private fun configureNativeAudio(flutterEngine: FlutterEngine) {
+        audioChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            audioChannelName
+        )
+
+        setupNativePopSoundPool()
+
+        audioChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "playPop" -> {
+                    val volume = (call.argument<Double>("volume") ?: 0.66).toFloat()
+                    result.success(playNativePop(volume))
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun setupNativePopSoundPool() {
+        if (popSoundPool != null) return
+
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        val pool = SoundPool.Builder()
+            .setMaxStreams(nativePopMaxStreams)
+            .setAudioAttributes(attributes)
+            .build()
+
+        pool.setOnLoadCompleteListener { _, sampleId, status ->
+            val index = popSoundIds.indexOf(sampleId)
+            if (index >= 0 && status == 0) {
+                popSoundLoaded[index] = true
+            }
+        }
+
+        popSoundPool = pool
+
+        try {
+            for ((index, assetPath) in popSoundAssetPaths.withIndex()) {
+                val assetKey = FlutterInjector
+                    .instance()
+                    .flutterLoader()
+                    .getLookupKeyForAsset(assetPath)
+
+                assets.openFd(assetKey).use { descriptor ->
+                    popSoundIds[index] = pool.load(descriptor, 1)
+                }
+            }
+        } catch (_: Throwable) {
+            releaseNativeAudio()
+        }
+    }
+
+    private fun playNativePop(volume: Float): Boolean {
+        val pool = popSoundPool ?: return false
+
+        val loadedIds = popSoundIds.filterIndexed { index, soundId ->
+            soundId != 0 && popSoundLoaded[index]
+        }
+
+        if (loadedIds.isEmpty()) return false
+
+        val eligibleIds =
+            if (loadedIds.size > 1) loadedIds.filter { it != lastNativePopSoundId } else loadedIds
+
+        val selectedSoundId = eligibleIds[Random.nextInt(eligibleIds.size)]
+        lastNativePopSoundId = selectedSoundId
+
+        val safeVolume = volume.coerceIn(0.0f, 1.0f)
+
+        val streamId = pool.play(
+            selectedSoundId,
+            safeVolume,
+            safeVolume,
+            1,
+            0,
+            1.0f
+        )
+
+        return streamId != 0
+    }
+
+    private fun releaseNativeAudio() {
+        popSoundPool?.release()
+        popSoundPool = null
+        popSoundIds = IntArray(popSoundAssetPaths.size)
+        popSoundLoaded = BooleanArray(popSoundAssetPaths.size)
+        lastNativePopSoundId = 0
     }
 
     private fun registerScreenshotExceptionSources() {
