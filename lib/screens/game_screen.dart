@@ -105,7 +105,10 @@ class _GameScreenState extends State<GameScreen>
   static const double _maxGameplayDt = 1.0 / 30.0;
   static const double _lagFrameDt = 1.0 / 24.0;
   static const int _lagForgivenessTickWindow = 8;
-  static const bool _perfTraceEnabled = true;
+  static const bool _perfHitchLoggingEnabled = true;
+  static const bool _perfSnapshotLoggingEnabled = false;
+  static const bool _tapTraceLoggingEnabled = false;
+  static const bool _skipPopAudioDuringLagForgiveness = true;
   static const double _perfTraceInterval = 0.50;
   static const double _perfHitchDt = 1.0 / 28.0;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
@@ -134,7 +137,13 @@ class _GameScreenState extends State<GameScreen>
     required double rawDt,
     required double dt,
   }) {
-    if (!_perfTraceEnabled) return;
+    final isHitchLabel = label == 'HITCH';
+
+    if (isHitchLabel) {
+      if (!_perfHitchLoggingEnabled) return;
+    } else if (!_perfSnapshotLoggingEnabled) {
+      return;
+    }
 
     int activeCount = 0;
     double minY = 0.0;
@@ -760,18 +769,20 @@ class _GameScreenState extends State<GameScreen>
     final activeBefore = _balloons.where((b) => !b.isPopped).length;
     final p = details.localPosition;
 
-    widget.gameState.log(
-      'TAP DOWN '
-      'x=${p.dx.toStringAsFixed(1)} '
-      'y=${p.dy.toStringAsFixed(1)} '
-      'world=${widget.spawner.currentWorld} '
-      'active=$activeBefore/${_balloons.length} '
-      'particles=${_particles.length} '
-      'shock=${_shockwaves.length} '
-      'score=${widget.engine.juice.scoreBursts.length} '
-      'audio=${AudioPlayerService.muted ? 'muted' : 'on'}',
-      type: DebugEventType.perf,
-    );
+    if (_tapTraceLoggingEnabled) {
+      widget.gameState.log(
+        'TAP DOWN '
+        'x=${p.dx.toStringAsFixed(1)} '
+        'y=${p.dy.toStringAsFixed(1)} '
+        'world=${widget.spawner.currentWorld} '
+        'active=$activeBefore/${_balloons.length} '
+        'particles=${_particles.length} '
+        'shock=${_shockwaves.length} '
+        'score=${widget.engine.juice.scoreBursts.length} '
+        'audio=${AudioPlayerService.muted ? 'muted' : 'on'}',
+        type: DebugEventType.perf,
+      );
+    }
 
     widget.engine.input.registerTap();
     TapHandler.handleTap(
@@ -849,27 +860,34 @@ class _GameScreenState extends State<GameScreen>
 
       _trimVisualEffects();
 
-      widget.gameState.log(
-        'TAP RESULT miss '
-        'missDelta=${missesAfter - missesBefore} '
-        'popsDelta=${widget.spawner.totalPops - popsBefore} '
-        'activeBefore=$activeBefore '
-        'activeAfter=${_balloons.where((b) => !b.isPopped).length} '
-        'particles=${_particles.length} '
-        'shock=${_shockwaves.length} '
-        'score=${widget.engine.juice.scoreBursts.length}',
-        type: DebugEventType.perf,
-      );
+      if (_tapTraceLoggingEnabled) {
+        widget.gameState.log(
+          'TAP RESULT miss '
+          'missDelta=${missesAfter - missesBefore} '
+          'popsDelta=${widget.spawner.totalPops - popsBefore} '
+          'activeBefore=$activeBefore '
+          'activeAfter=${_balloons.where((b) => !b.isPopped).length} '
+          'particles=${_particles.length} '
+          'shock=${_shockwaves.length} '
+          'score=${widget.engine.juice.scoreBursts.length}',
+          type: DebugEventType.perf,
+        );
+      }
 
       return;
     }
 
     widget.engine.runLifecycle.report(PopEvent(points: 1));
 
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      AudioPlayerService.playPop();
-    });
+    final shouldPlayPopSound =
+        !_skipPopAudioDuringLagForgiveness || _lagForgivenessTicks == 0;
+
+    if (shouldPlayPopSound) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        AudioPlayerService.playPop();
+      });
+    }
 
     widget.engine.juice.spawnScoreBurst(
       x: p.dx,
@@ -910,18 +928,20 @@ class _GameScreenState extends State<GameScreen>
 
     _trimVisualEffects();
 
-    widget.gameState.log(
-      'TAP RESULT hit '
-      'perfect=${_controller.lastTapPerfect} '
-      'timing=${_controller.timingLockActive} '
-      'popsDelta=${widget.spawner.totalPops - popsBefore} '
-      'activeBefore=$activeBefore '
-      'activeAfter=${_balloons.where((b) => !b.isPopped).length} '
-      'particles=${_particles.length} '
-      'shock=${_shockwaves.length} '
-      'score=${widget.engine.juice.scoreBursts.length}',
-      type: DebugEventType.perf,
-    );
+    if (_tapTraceLoggingEnabled) {
+      widget.gameState.log(
+        'TAP RESULT hit '
+        'perfect=${_controller.lastTapPerfect} '
+        'timing=${_controller.timingLockActive} '
+        'popsDelta=${widget.spawner.totalPops - popsBefore} '
+        'activeBefore=$activeBefore '
+        'activeAfter=${_balloons.where((b) => !b.isPopped).length} '
+        'particles=${_particles.length} '
+        'shock=${_shockwaves.length} '
+        'score=${widget.engine.juice.scoreBursts.length}',
+        type: DebugEventType.perf,
+      );
+    }
 
     _popShake = _controller.lastTapPerfect
         ? (_controller.timingLockActive ? 14.0 : 10.0)

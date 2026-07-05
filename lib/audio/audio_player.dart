@@ -4,7 +4,7 @@ class AudioPlayerService {
   static bool _muted = false;
 
   static DateTime? _lastPopSoundAt;
-  static const Duration _minPopSoundGap = Duration(milliseconds: 40);
+  static const Duration _minPopSoundGap = Duration(milliseconds: 70);
   static final AssetSource _popSource = AssetSource('audio/pop_mid.wav');
 
   static bool get muted => _muted;
