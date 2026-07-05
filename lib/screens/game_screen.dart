@@ -897,14 +897,14 @@ class _GameScreenState extends State<GameScreen>
 
     final popBurst = PopParticle.burst(p.dx, p.dy);
     _particles.addAll(
-      popBurst.take(_controller.timingLockActive ? 8 : 10),
+      popBurst.take(_controller.timingLockActive ? 6 : 10),
     );
 
     if (_controller.timingLockActive) {
       final timingBurst = PopParticle.burst(p.dx, p.dy);
 
       _particles.addAll(
-        timingBurst.take(6).map((p) => PopParticle(
+        timingBurst.take(3).map((p) => PopParticle(
               x: p.x,
               y: p.y,
               vx: p.vx * 0.42,
@@ -921,7 +921,7 @@ class _GameScreenState extends State<GameScreen>
         x: p.dx,
         y: p.dy,
         age: 0,
-        life: _controller.timingLockActive ? 0.46 : 0.35,
+        life: _controller.timingLockActive ? 0.34 : 0.35,
       ),
     );
 
