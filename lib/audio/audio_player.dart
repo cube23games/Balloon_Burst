@@ -15,7 +15,10 @@ class AudioPlayerService {
 
   static const MethodChannel _nativeAudioChannel =
       MethodChannel('com.cube23.balloonburst/audio');
-  static bool _nativePopAvailable = true;
+  // Native SoundPool was tested in TJ-42M/TJ-42N, but on target hardware the
+  // MethodChannel/native play path caused a visible freeze on nearly every pop.
+  // Keep the native code dormant for now and use the lightweight Dart fallback.
+  static bool _nativePopAvailable = false;
   static int _popVariantIndex = 0;
 
   static bool get muted => _muted;
