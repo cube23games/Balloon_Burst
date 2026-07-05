@@ -1,5 +1,4 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/services.dart';
 
 class AudioPlayerService {
   static bool _muted = false;
@@ -13,18 +12,12 @@ class AudioPlayerService {
   ];
   static const double _popVolume = 0.66;
 
-  static const MethodChannel _nativeAudioChannel =
-      MethodChannel('com.cube23.balloonburst/audio');
-  // Native SoundPool was tested in TJ-42M/TJ-42N, but on target hardware the
-  // MethodChannel/native play path caused a visible freeze on nearly every pop.
-  // Keep the native code dormant for now and use the lightweight Dart fallback.
-  static bool _nativePopAvailable = false;
   static int _popVariantIndex = 0;
 
   static bool get muted => _muted;
 
   static String get diagnosticSummary =>
-      'muted=$_muted popPool=$_popPoolSize popVariants=${_popSources.length} popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume nativePop=$_nativePopAvailable';
+      'muted=$_muted popPool=$_popPoolSize popVariants=${_popSources.length} popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume';
 
   static void setMuted(bool value) {
     _muted = value;
@@ -88,27 +81,6 @@ class AudioPlayerService {
 
     _lastPopSoundAt = now;
 
-    if (_nativePopAvailable) {
-      try {
-        _nativeAudioChannel
-            .invokeMethod<bool>('playPop', <String, Object>{
-              'volume': _popVolume,
-            })
-            .then<void>((played) {
-              if (played != true) {
-                _playPopWithAudioPlayer();
-              }
-            })
-            .catchError((_) {
-              _nativePopAvailable = false;
-              _playPopWithAudioPlayer();
-            });
-        return;
-      } catch (_) {
-        _nativePopAvailable = false;
-      }
-    }
-
     _playPopWithAudioPlayer();
   }
 
@@ -120,7 +92,7 @@ class AudioPlayerService {
       _popIndex = (_popIndex + 1) % _popPoolSize;
       _popVariantIndex = (_popVariantIndex + 1) % _popSources.length;
 
-      // Fallback path. Native Android SoundPool is preferred for rapid pops.
+      // Lightweight rapid-pop path using short, normalized pop variants.
       player.play(
         source,
         volume: _popVolume,
