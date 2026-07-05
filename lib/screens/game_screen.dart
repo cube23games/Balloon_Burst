@@ -108,7 +108,7 @@ class _GameScreenState extends State<GameScreen>
   static const bool _perfHitchLoggingEnabled = true;
   static const bool _perfSnapshotLoggingEnabled = false;
   static const bool _tapTraceLoggingEnabled = false;
-  static const bool _skipPopAudioDuringLagForgiveness = true;
+  static const bool _skipPopAudioDuringLagForgiveness = false;
   static const double _perfTraceInterval = 0.50;
   static const double _perfHitchDt = 1.0 / 28.0;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
