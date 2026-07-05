@@ -1,6 +1,8 @@
 package com.cube23.balloonburst
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.content.Context
 import android.database.ContentObserver
 import android.os.Build
 import android.os.Handler
@@ -38,6 +40,13 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             lifecycleChannelName
         )
+
+        lifecycleChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getDeviceDiagnostics" -> result.success(buildDeviceDiagnostics())
+                else -> result.notImplemented()
+            }
+        }
     }
 
     override fun onStart() {
@@ -212,6 +221,45 @@ class MainActivity : FlutterActivity() {
 
         sentPaused = false
         lifecycleChannel?.invokeMethod("nativeResume", null)
+    }
+
+    private fun buildDeviceDiagnostics(): Map<String, Any> {
+        val bytesPerMb = 1024L * 1024L
+        val runtime = Runtime.getRuntime()
+
+        val appHeapUsedMb = (runtime.totalMemory() - runtime.freeMemory()) / bytesPerMb
+        val appHeapMaxMb = runtime.maxMemory() / bytesPerMb
+
+        val memInfo = ActivityManager.MemoryInfo()
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        activityManager.getMemoryInfo(memInfo)
+
+        return mapOf(
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "hardware" to Build.HARDWARE,
+            "refreshHz" to currentRefreshRate().toDouble(),
+            "appHeapUsedMb" to appHeapUsedMb,
+            "appHeapMaxMb" to appHeapMaxMb,
+            "systemAvailMb" to (memInfo.availMem / bytesPerMb),
+            "systemTotalMb" to (memInfo.totalMem / bytesPerMb),
+            "systemThresholdMb" to (memInfo.threshold / bytesPerMb),
+            "lowMemory" to memInfo.lowMemory
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun currentRefreshRate(): Float {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display?.refreshRate ?: windowManager.defaultDisplay.refreshRate
+            } else {
+                windowManager.defaultDisplay.refreshRate
+            }
+        } catch (_: Throwable) {
+            0f
+        }
     }
 
     private fun sendNativeDebug(message: String) {

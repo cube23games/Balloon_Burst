@@ -185,6 +185,37 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  Future<void> _logDeviceDiagnostics() async {
+    try {
+      final diag = await _nativeLifecycleChannel
+          .invokeMethod<Map<dynamic, dynamic>>('getDeviceDiagnostics');
+
+      if (!mounted || diag == null) return;
+
+      String value(String key) => '${diag[key] ?? '?'}';
+
+      widget.gameState.log(
+        'SYSTEM: DEVICE DIAG '
+        'model=${value('model')} '
+        'sdk=${value('sdkInt')} '
+        'refreshHz=${value('refreshHz')} '
+        'appHeap=${value('appHeapUsedMb')}/${value('appHeapMaxMb')}MB '
+        'systemAvail=${value('systemAvailMb')}MB '
+        'systemTotal=${value('systemTotalMb')}MB '
+        'threshold=${value('systemThresholdMb')}MB '
+        'lowMemory=${value('lowMemory')}',
+        type: DebugEventType.system,
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      widget.gameState.log(
+        'SYSTEM: DEVICE DIAG unavailable',
+        type: DebugEventType.system,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -197,6 +228,8 @@ class _GameScreenState extends State<GameScreen>
       'SYSTEM: GAME WIRED',
       type: DebugEventType.system,
     );
+
+    unawaited(_logDeviceDiagnostics());
 
     AudioPlayerService.warmUpPop();
 
