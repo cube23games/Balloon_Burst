@@ -198,6 +198,8 @@ class _GameScreenState extends State<GameScreen>
       type: DebugEventType.system,
     );
 
+    AudioPlayerService.warmUpPop();
+
     widget.engine.difficulty.reset();
     widget.engine.runLifecycle.startRun(
       runId: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -883,10 +885,7 @@ class _GameScreenState extends State<GameScreen>
         !_skipPopAudioDuringLagForgiveness || _lagForgivenessTicks == 0;
 
     if (shouldPlayPopSound) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        AudioPlayerService.playPop();
-      });
+      AudioPlayerService.playPop();
     }
 
     widget.engine.juice.spawnScoreBurst(

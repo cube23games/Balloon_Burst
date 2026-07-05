@@ -13,11 +13,12 @@ class AudioPlayerService {
   static const double _popVolume = 0.66;
 
   static int _popVariantIndex = 0;
+  static bool _popWarmed = false;
 
   static bool get muted => _muted;
 
   static String get diagnosticSummary =>
-      'muted=$_muted popPool=$_popPoolSize popVariants=${_popSources.length} popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume';
+      'muted=$_muted popPool=$_popPoolSize popVariants=${_popSources.length} popGapMs=${_minPopSoundGap.inMilliseconds} popVolume=$_popVolume popWarmed=$_popWarmed';
 
   static void setMuted(bool value) {
     _muted = value;
@@ -67,6 +68,22 @@ class AudioPlayerService {
   // ============================================================
   // POP (CRITICAL — NON-BLOCKING)
   // ============================================================
+
+  static void warmUpPop() {
+    if (_popWarmed) return;
+
+    _popWarmed = true;
+
+    try {
+      for (var i = 0; i < _popSources.length && i < _popPlayers.length; i++) {
+        // Silent pre-load so the first real tap does not pay the first-use cost.
+        _popPlayers[i].play(
+          _popSources[i],
+          volume: 0.0,
+        );
+      }
+    } catch (_) {}
+  }
 
   static void playPop() {
     if (_muted) return;
