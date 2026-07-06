@@ -53,10 +53,11 @@ class WorldSurgePulse {
       }
     });
 
-    // Keep lightning controller clean between triggers
+    // Keep lightning controller clean between triggers.
+    // Important: leaving it at 1.0 can leave a faint afterimage in later worlds.
     _lightningCtrl.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        // no-op for now (visual-only); leaving controller at 1.0 is fine
+        _lightningCtrl.reset();
       }
     });
   }

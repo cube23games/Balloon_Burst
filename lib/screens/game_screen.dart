@@ -608,7 +608,7 @@ class _GameScreenState extends State<GameScreen>
     _missPopups.removeWhere((m) => !m.alive);
     _trimVisualEffects();
 
-    _popShake *= 0.85;
+    _popShake *= 0.68;
     if (_popShake < 0.1) {
       _popShake = 0;
     }
@@ -976,8 +976,8 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _popShake = _controller.lastTapPerfect
-        ? (_controller.timingLockActive ? 14.0 : 10.0)
-        : (_controller.timingLockActive ? 10.0 : 6.0);
+        ? (_controller.timingLockActive ? 4.0 : 3.0)
+        : (_controller.timingLockActive ? 3.0 : 2.0);
 
     final nextStreak = widget.engine.runLifecycle.getSnapshot().streak;
     final prevMilestone = _milestoneForStreak(prevStreak);
