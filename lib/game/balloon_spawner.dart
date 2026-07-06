@@ -28,14 +28,14 @@ class BalloonSpawner {
     1: 1.00,
     2: 1.25,
     3: 1.55,
-    4: 1.90,
+    4: 1.68,
   };
 
   static const Map<int, double> worldSpawnInterval = {
     1: 1.20,
     2: 1.00,
     3: 0.85,
-    4: 0.70,
+    4: 0.92,
   };
 
   static const double maxWorldRamp = 0.10;
@@ -53,7 +53,7 @@ class BalloonSpawner {
   static const double clusterOriginRangeWorld1 = 0.66;
   static const double clusterOriginRangeWorld2 = 0.82;
   static const double clusterOriginRangeWorld3 = 0.96;
-  static const double clusterOriginRangeWorld4 = 1.06;
+  static const double clusterOriginRangeWorld4 = 0.86;
 
   static const double xClamp = 0.92;
 
@@ -63,7 +63,7 @@ class BalloonSpawner {
     1: 1,
     2: 2,
     3: 2,
-    4: 3,
+    4: 2,
   };
 
   void update({
@@ -143,7 +143,13 @@ class BalloonSpawner {
     };
 
     final factor = 1.0 + ((_rng.nextDouble() * 2 - 1) * variance);
-    return (spawnInterval * factor).clamp(0.45, 1.6);
+    final minThreshold = currentWorld >= 4
+        ? 0.60
+        : currentWorld >= 3
+            ? 0.48
+            : 0.45;
+
+    return (spawnInterval * factor).clamp(minThreshold, 1.6);
   }
 
   int _pickGroupSizeForWorld(int world) {
@@ -151,30 +157,30 @@ class BalloonSpawner {
 
     switch (world) {
       case 1:
-        if (roll < 0.20) return 1;
-        if (roll < 0.62) return 2;
-        return 3;
+        // Slow world: bigger clusters are readable and satisfying.
+        if (roll < 0.14) return 1;
+        if (roll < 0.54) return 2;
+        if (roll < 0.92) return 3;
+        return 4;
 
       case 2:
-        if (roll < 0.12) return 1;
-        if (roll < 0.40) return 2;
-        if (roll < 0.74) return 3;
+        if (roll < 0.14) return 1;
+        if (roll < 0.56) return 2;
+        if (roll < 0.90) return 3;
         return 4;
 
       case 3:
-        // 1:4% | 2:20% | 3:38% | 4:28% | 5:10%
-        if (roll < 0.04) return 1;
-        if (roll < 0.24) return 2;
-        if (roll < 0.62) return 3;
-        if (roll < 0.90) return 4;
-        return 5;
+        // Pressure world: no 5-clusters, rare 4-clusters.
+        if (roll < 0.12) return 1;
+        if (roll < 0.52) return 2;
+        if (roll < 0.90) return 3;
+        return 4;
 
       case 4:
-        // 1:12% | 2:38% | 3:38% | 4:12%
-        if (roll < 0.12) return 1;
-        if (roll < 0.50) return 2;
-        if (roll < 0.88) return 3;
-        return 4;
+        // Fast world: readability beats cluster size.
+        if (roll < 0.30) return 1;
+        if (roll < 0.82) return 2;
+        return 3;
 
       default:
         return 2;
@@ -213,18 +219,18 @@ class BalloonSpawner {
 
     // Worlds 3+ bias toward the opposite side of the last cluster.
     final double preferredSign = _lastClusterCenterX >= 0 ? -1.0 : 1.0;
-    final bool forceOpposite = _rng.nextDouble() < (currentWorld >= 4 ? 0.82 : 0.72);
+    final bool forceOpposite = _rng.nextDouble() < (currentWorld >= 4 ? 0.58 : 0.72);
     final double sign = forceOpposite
         ? preferredSign
         : (_rng.nextBool() ? 1.0 : -1.0);
 
     // Bias farther outward so the switch is felt, not just technically different.
     final t = _rng.nextDouble();
-    final exponent = currentWorld >= 4 ? 0.38 : 0.44;
+    final exponent = currentWorld >= 4 ? 0.58 : 0.44;
     final biased = pow(t, exponent).toDouble();
 
     // Keep a minimum outward push in later worlds.
-    final outwardFloor = currentWorld >= 4 ? 0.42 : 0.32;
+    final outwardFloor = currentWorld >= 4 ? 0.24 : 0.32;
     final strength = outwardFloor + ((1.0 - outwardFloor) * biased);
 
     return strength * range * sign;
@@ -240,7 +246,7 @@ class BalloonSpawner {
       final base = (i - mid) * clusterSpread;
       final asymmetry = (_rng.nextDouble() * 2 - 1) *
           (currentWorld >= 4
-              ? 0.090
+              ? 0.045
               : currentWorld >= 3
                   ? 0.075
                   : currentWorld >= 2
