@@ -178,8 +178,24 @@ class _GameScreenState extends State<GameScreen>
       'shock=${_shockwaves.length} '
       'score=${widget.engine.juice.scoreBursts.length} '
       'missPop=${_missPopups.length} '
-      'speed=${widget.spawner.speedMultiplier.toStringAsFixed(2)} '
-      'spawn=${widget.spawner.spawnInterval.toStringAsFixed(2)} '
+      'worldSpeed=${widget.spawner.worldSpeedBaseMultiplier.toStringAsFixed(2)} '
+      'worldRamp=${widget.spawner.worldRampMultiplier.toStringAsFixed(2)} '
+      'accuracySpeed=${widget.spawner.accuracyModifier.toStringAsFixed(2)} '
+      'engineSpeed=${widget.spawner.engineSpeedMultiplier.toStringAsFixed(2)} '
+      'combinedSpeed=${widget.spawner.combinedSpeedMultiplier.toStringAsFixed(2)} '
+      'risePx=${widget.spawner.nominalRiseSpeed.toStringAsFixed(1)} '
+      'riseRange=${widget.spawner.minimumRiseSpeed.toStringAsFixed(1)}'
+      '..${widget.spawner.maximumRiseSpeed.toStringAsFixed(1)} '
+      'worldSpawn=${widget.spawner.worldSpawnTargetInterval.toStringAsFixed(2)} '
+      'adaptiveEngineSpawn=${widget.spawner.adaptiveEngineSpawnInterval.toStringAsFixed(2)} '
+      'adaptiveFactor=${widget.spawner.adaptiveSpawnFactor.toStringAsFixed(2)} '
+      'spawnTarget=${widget.spawner.targetSpawnInterval.toStringAsFixed(2)} '
+      'spawnEased=${widget.spawner.spawnInterval.toStringAsFixed(2)} '
+      'effectiveSpawn=${widget.spawner.effectiveSpawnInterval.toStringAsFixed(2)} '
+      'spawnFloor=${widget.spawner.spawnFloor.toStringAsFixed(2)} '
+      'spawnVariance=${widget.spawner.spawnVariance.toStringAsFixed(2)} '
+      'cluster=${widget.spawner.lastSpawnBatch} '
+      'runSec=${widget.spawner.engineElapsedSeconds.toStringAsFixed(1)} '
       'audio=${AudioPlayerService.muted ? 'muted' : 'on'} '
       'lagForgive=$_lagForgivenessTicks',
       type: DebugEventType.perf,
@@ -550,6 +566,11 @@ class _GameScreenState extends State<GameScreen>
       balloons: _balloons,
       viewportHeight: _lastSize.height,
       engineSpawnInterval: adaptiveSpawnInterval,
+      engineSpeedMultiplier:
+          widget.engine.difficulty.snapshot.speedMultiplier,
+      adaptiveSpawnFactor: adaptiveFactor,
+      engineElapsedSeconds: widget.engine.difficulty.elapsed,
+      baseRiseSpeed: baseRiseSpeed,
       engineMaxSimultaneousSpawns:
           widget.engine.difficulty.snapshot.maxSimultaneousSpawns,
     );
@@ -1250,7 +1271,7 @@ class _GameScreenState extends State<GameScreen>
                 showHud: _showHud,
                 fps: _fps,
                 speedMultiplier:
-                    widget.engine.difficulty.snapshot.speedMultiplier,
+                    widget.spawner.combinedSpeedMultiplier,
                 recentAccuracy: _controller.accuracy01,
                 runAccuracy: widget.engine.runLifecycle.getSnapshot().accuracy01,
                 recentMisses: _controller.missCount,

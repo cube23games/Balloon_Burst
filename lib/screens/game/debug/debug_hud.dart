@@ -24,7 +24,7 @@ class DebugHud extends StatelessWidget {
   Widget build(BuildContext context) {
     final lines = <String>[
       'FPS: ${fps.toStringAsFixed(0)}',
-      'Speed: ${speedMultiplier.toStringAsFixed(2)}x',
+      'Combined Speed: ${speedMultiplier.toStringAsFixed(2)}x',
       'World: $world',
       'Balloons: $balloonCount',
       'Tap Accuracy: ${(recentAccuracy * 100).toStringAsFixed(0)}%',

@@ -46,8 +46,24 @@ SUMMARY
 world: ${widget.spawner.currentWorld}
 frame: ${widget.gameState.framesSinceStart}
 totalPops: ${widget.spawner.totalPops}
-speedMultiplier: ${widget.spawner.speedMultiplier.toStringAsFixed(2)}
-spawnInterval: ${widget.spawner.spawnInterval.toStringAsFixed(2)}
+worldSpeedBaseMultiplier: ${widget.spawner.worldSpeedBaseMultiplier.toStringAsFixed(2)}
+worldRampMultiplier: ${widget.spawner.worldRampMultiplier.toStringAsFixed(2)}
+accuracySpeedMultiplier: ${widget.spawner.accuracyModifier.toStringAsFixed(2)}
+engineSpeedMultiplier: ${widget.spawner.engineSpeedMultiplier.toStringAsFixed(2)}
+combinedSpeedMultiplier: ${widget.spawner.combinedSpeedMultiplier.toStringAsFixed(2)}
+nominalRiseSpeedPxPerSecond: ${widget.spawner.nominalRiseSpeed.toStringAsFixed(1)}
+minimumRiseSpeedPxPerSecond: ${widget.spawner.minimumRiseSpeed.toStringAsFixed(1)}
+maximumRiseSpeedPxPerSecond: ${widget.spawner.maximumRiseSpeed.toStringAsFixed(1)}
+worldSpawnTargetInterval: ${widget.spawner.worldSpawnTargetInterval.toStringAsFixed(2)}
+adaptiveEngineSpawnInterval: ${widget.spawner.adaptiveEngineSpawnInterval.toStringAsFixed(2)}
+adaptiveSpawnFactor: ${widget.spawner.adaptiveSpawnFactor.toStringAsFixed(2)}
+targetSpawnInterval: ${widget.spawner.targetSpawnInterval.toStringAsFixed(2)}
+easedSpawnInterval: ${widget.spawner.spawnInterval.toStringAsFixed(2)}
+effectiveSpawnInterval: ${widget.spawner.effectiveSpawnInterval.toStringAsFixed(2)}
+spawnFloor: ${widget.spawner.spawnFloor.toStringAsFixed(2)}
+spawnVariance: ${widget.spawner.spawnVariance.toStringAsFixed(2)}
+lastSpawnBatch: ${widget.spawner.lastSpawnBatch}
+engineElapsedSeconds: ${widget.spawner.engineElapsedSeconds.toStringAsFixed(1)}
 autoTap: ${widget.gameState.autoTapEnabled}
 autoTapMode: ${widget.gameState.autoTapModeLabel}
 debugFrozen: ${widget.gameState.debugFrozen}
@@ -139,8 +155,22 @@ ${rawLogs.join('\n')}
               'World: ${widget.spawner.currentWorld}\n'
               'Frame: ${widget.gameState.framesSinceStart}\n'
               'Total Pops: ${widget.spawner.totalPops}\n'
-              'Speed Multiplier: ${widget.spawner.speedMultiplier.toStringAsFixed(2)}\n'
-              'Spawn Interval: ${widget.spawner.spawnInterval.toStringAsFixed(2)}',
+              'World Speed: ${widget.spawner.worldSpeedBaseMultiplier.toStringAsFixed(2)}x\n'
+              'World Ramp: ${widget.spawner.worldRampMultiplier.toStringAsFixed(2)}x\n'
+              'Accuracy Speed: ${widget.spawner.accuracyModifier.toStringAsFixed(2)}x\n'
+              'Engine Speed: ${widget.spawner.engineSpeedMultiplier.toStringAsFixed(2)}x\n'
+              'Combined Speed: ${widget.spawner.combinedSpeedMultiplier.toStringAsFixed(2)}x\n'
+              'Rise: ${widget.spawner.nominalRiseSpeed.toStringAsFixed(0)} '
+              '(${widget.spawner.minimumRiseSpeed.toStringAsFixed(0)}'
+              '..${widget.spawner.maximumRiseSpeed.toStringAsFixed(0)}) px/s\n'
+              'World Spawn: ${widget.spawner.worldSpawnTargetInterval.toStringAsFixed(2)}s\n'
+              'Adaptive Engine Spawn: ${widget.spawner.adaptiveEngineSpawnInterval.toStringAsFixed(2)}s\n'
+              'Spawn Target: ${widget.spawner.targetSpawnInterval.toStringAsFixed(2)}s\n'
+              'Spawn Eased: ${widget.spawner.spawnInterval.toStringAsFixed(2)}s\n'
+              'Effective Spawn: ${widget.spawner.effectiveSpawnInterval.toStringAsFixed(2)}s\n'
+              'Spawn Floor: ${widget.spawner.spawnFloor.toStringAsFixed(2)}s\n'
+              'Last Cluster: ${widget.spawner.lastSpawnBatch}\n'
+              'Run Seconds: ${widget.spawner.engineElapsedSeconds.toStringAsFixed(0)}',
               style: const TextStyle(fontFamily: 'monospace'),
             ),
           ),

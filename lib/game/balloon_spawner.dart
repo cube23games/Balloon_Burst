@@ -18,6 +18,17 @@ class BalloonSpawner {
   int _lastLoggedWorld = 1;
   double _lastClusterCenterX = 0.0;
 
+  // Read-only difficulty telemetry. These values mirror the
+  // existing movement and spawn calculations.
+  double _lastBaseRiseSpeed = 0.0;
+  double _lastEngineSpeedMultiplier = 1.0;
+  double _lastAdaptiveEngineSpawnInterval = 1.2;
+  double _lastAdaptiveSpawnFactor = 1.0;
+  double _lastTargetSpawnInterval = 1.2;
+  double _lastSampledSpawnThreshold = 1.2;
+  double _lastEngineElapsedSeconds = 0.0;
+  int _lastSpawnBatch = 0;
+
   final Duration mercyWindow = const Duration(milliseconds: 120);
 
   static const int world2Pops = 50;
@@ -72,8 +83,18 @@ class BalloonSpawner {
     required List<Balloon> balloons,
     required double viewportHeight,
     required double engineSpawnInterval,
+      required double engineSpeedMultiplier,
+      required double adaptiveSpawnFactor,
+      required double engineElapsedSeconds,
+      required double baseRiseSpeed,
     required int engineMaxSimultaneousSpawns,
   }) {
+      _lastBaseRiseSpeed = baseRiseSpeed;
+      _lastEngineSpeedMultiplier = engineSpeedMultiplier;
+      _lastAdaptiveEngineSpawnInterval = engineSpawnInterval;
+      _lastAdaptiveSpawnFactor = adaptiveSpawnFactor;
+      _lastEngineElapsedSeconds = engineElapsedSeconds;
+
     final int activeCount = balloons.where((b) => !b.isPopped).length;
     final int remainingCapacity =
         (engineMaxSimultaneousSpawns - activeCount).clamp(0, 9999);
@@ -88,17 +109,22 @@ class BalloonSpawner {
 
     final double engineMultiplier = engineSpawnInterval / 1.2;
     final double targetInterval = worldInterval * engineMultiplier;
+      _lastTargetSpawnInterval = targetInterval;
 
     spawnInterval += (targetInterval - spawnInterval) * 0.05;
 
     _timer += dt;
-    if (_timer < _nextSpawnThreshold()) return;
+      final sampledThreshold = _nextSpawnThreshold();
+      _lastSampledSpawnThreshold = sampledThreshold;
+
+      if (_timer < sampledThreshold) return;
     _timer = 0.0;
 
     final int desiredCount = _pickGroupSizeForWorld(currentWorld);
     final int count = min(desiredCount, remainingCapacity);
 
     if (count <= 0) return;
+      _lastSpawnBatch = count;
 
     final List<BalloonType> types = _chooseTypesForGroup(count);
 
@@ -369,6 +395,61 @@ class BalloonSpawner {
     return worldMult * ramp * accuracyModifier;
   }
 
+  double get worldSpeedBaseMultiplier =>
+      worldSpeedMultiplier[currentWorld] ?? 1.0;
+
+  double get worldRampMultiplier =>
+      1.0 + (worldProgress * maxWorldRamp);
+
+  double get engineSpeedMultiplier =>
+      _lastEngineSpeedMultiplier;
+
+  double get combinedSpeedMultiplier =>
+      speedMultiplier * engineSpeedMultiplier;
+
+  double get nominalRiseSpeed =>
+      _lastBaseRiseSpeed * combinedSpeedMultiplier;
+
+  double get minimumRiseSpeed =>
+      nominalRiseSpeed * 0.92;
+
+  double get maximumRiseSpeed =>
+      nominalRiseSpeed * 1.08;
+
+  double get worldSpawnTargetInterval =>
+      worldSpawnInterval[currentWorld] ?? spawnInterval;
+
+  double get adaptiveEngineSpawnInterval =>
+      _lastAdaptiveEngineSpawnInterval;
+
+  double get adaptiveSpawnFactor =>
+      _lastAdaptiveSpawnFactor;
+
+  double get targetSpawnInterval =>
+      _lastTargetSpawnInterval;
+
+  double get effectiveSpawnInterval =>
+      _lastSampledSpawnThreshold;
+
+  double get spawnFloor => currentWorld >= 4
+      ? 0.60
+      : currentWorld >= 3
+          ? 0.48
+          : 0.45;
+
+  double get spawnVariance => switch (currentWorld) {
+        1 => 0.06,
+        2 => 0.10,
+        3 => 0.14,
+        4 => 0.18,
+        _ => 0.10,
+      };
+
+  int get lastSpawnBatch => _lastSpawnBatch;
+
+  double get engineElapsedSeconds =>
+      _lastEngineElapsedSeconds;
+
   String _worldName(int w) {
     switch (w) {
       case 2:
@@ -386,6 +467,15 @@ class BalloonSpawner {
     _timer = 0.0;
     _spawnCount = 0;
     spawnInterval = worldSpawnInterval[1]!;
+
+    _lastBaseRiseSpeed = 0.0;
+    _lastEngineSpeedMultiplier = 1.0;
+    _lastAdaptiveEngineSpawnInterval = 1.2;
+    _lastAdaptiveSpawnFactor = 1.0;
+    _lastTargetSpawnInterval = 1.2;
+    _lastSampledSpawnThreshold = 1.2;
+    _lastEngineElapsedSeconds = 0.0;
+    _lastSpawnBatch = 0;
 
     totalPops = 0;
     _lastLoggedWorld = 1;
