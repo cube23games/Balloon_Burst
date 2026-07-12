@@ -89,6 +89,7 @@ class _GameScreenState extends State<GameScreen>
   int _perfHitchCount = 0;
 
   bool _leaderboardSubmitted = false;
+  DateTime? _rewardCreditedEndTime;
   int? _leaderboardPlacement;
   int _lastReportedWorld = 1;
 
@@ -696,14 +697,16 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _maybeSubmitLeaderboard() {
-    if (_leaderboardSubmitted) return;
-
-    _leaderboardSubmitted = true;
     final summary = widget.engine.runLifecycle.latestSummary;
+    if (summary == null) return;
 
-    if (summary != null) {
+    if (_rewardCreditedEndTime != summary.endTime) {
+      _rewardCreditedEndTime = summary.endTime;
       widget.engine.creditRunCoins(summary);
     }
+
+    if (_leaderboardSubmitted) return;
+    _leaderboardSubmitted = true;
 
     widget.engine.submitLatestRunToLeaderboard().then((placement) {
       if (!mounted) return;
@@ -1002,6 +1005,7 @@ class _GameScreenState extends State<GameScreen>
     _canCountMisses = false;
 
     _leaderboardSubmitted = false;
+    _rewardCreditedEndTime = null;
     _leaderboardPlacement = null;
 
     _isLifecyclePaused = false;
@@ -1028,10 +1032,15 @@ class _GameScreenState extends State<GameScreen>
   }
 
   Future<void> _revive() async {
+    final summary = widget.engine.runLifecycle.latestSummary;
+    if (summary == null || summary.endReason == EndReason.victory) return;
+
     final success = await widget.engine.wallet.spendCoins(_reviveCost);
     if (!success) return;
 
-    _leaderboardSubmitted = false;
+    // Keep the original leaderboard submission. A revive must not submit
+    // the same logical run twice. Clear only the displayed placement so it
+    // is not presented beside later cumulative stats.
     _leaderboardPlacement = null;
 
     _dangerMode = false;
@@ -1259,7 +1268,7 @@ class _GameScreenState extends State<GameScreen>
                 RunEndOverlay(
                   state: RunEndState.fromSummary(summary),
                   onReplay: _replay,
-                  onRevive: _revive,
+                  onRevive: summary.endReason == EndReason.victory ? null : _revive,
                   placement: _leaderboardPlacement,
                   onViewLeaderboard: () {
                     Navigator.of(context).push(

@@ -32,6 +32,12 @@ class TJEngine {
 
   RunReward? _lastRunReward;
 
+  // Tracks the cumulative reward already credited for the active logical run.
+  // After a revive, only newly earned reward coins are added to the wallet.
+  String? _creditedRunId;
+  int _creditedRunTotal = 0;
+  int _lastCreditedRunCoins = 0;
+
   TJEngine({
     ShieldManager? shieldManager,
     RunLifecycleManager? runLifecycleManager,
@@ -121,6 +127,7 @@ class TJEngine {
   // ============================================================
 
   RunReward? get lastRunReward => _lastRunReward;
+  int get lastCreditedRunCoins => _lastCreditedRunCoins;
 
   RunReward calculateRunReward(RunSummary summary) {
     const base = 5;
@@ -145,6 +152,19 @@ class TJEngine {
   Future<void> creditRunCoins(RunSummary summary) async {
     final reward = calculateRunReward(summary);
     _lastRunReward = reward;
-    await wallet.addCoins(reward.totalCoins);
+
+    if (_creditedRunId != summary.runId) {
+      _creditedRunId = summary.runId;
+      _creditedRunTotal = 0;
+    }
+
+    final deltaCoins = reward.totalCoins - _creditedRunTotal;
+    _lastCreditedRunCoins = deltaCoins > 0 ? deltaCoins : 0;
+    if (deltaCoins <= 0) return;
+
+    // Update before awaiting persistence so rapid repeated calls cannot
+    // credit the same reward delta more than once.
+    _creditedRunTotal = reward.totalCoins;
+    await wallet.addCoins(deltaCoins);
   }
 }

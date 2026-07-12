@@ -222,7 +222,7 @@ class _RunEndOverlayState extends State<RunEndOverlay>
   }
 
   void _maybeStartRewardAnimation(RunReward reward) {
-    final total = _totalForReward(reward);
+    final total = widget.engine.lastCreditedRunCoins;
     if (_currentRewardTotal == total) return;
     AudioPlayerService.playCoinRamp(total);
 
@@ -378,6 +378,19 @@ class _RunEndOverlayState extends State<RunEndOverlay>
   }
 
   Widget _buildRewardBreakdown(RunReward reward) {
+    final totalRunCoins = _totalForReward(reward);
+    final creditedNow = widget.engine.lastCreditedRunCoins;
+    final isIncrementalCredit = creditedNow < totalRunCoins;
+
+    final rewardTitle = _isVictory
+        ? 'VICTORY REWARD'
+        : isIncrementalCredit
+            ? 'RUN TOTAL'
+            : 'RUN REWARD';
+
+    final totalLabel =
+        isIncrementalCredit ? 'NEW COINS ADDED' : 'TOTAL EARNED';
+
     Widget row(String label, int value) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
@@ -407,7 +420,7 @@ class _RunEndOverlayState extends State<RunEndOverlay>
       children: [
         const SizedBox(height: 18),
         Text(
-          _isVictory ? 'VICTORY REWARD' : 'RUN REWARD',
+          rewardTitle,
           style: TextStyle(
             color: _isVictory ? const Color(0xFFFFE082) : Colors.amber,
             fontWeight: FontWeight.w900,
@@ -468,9 +481,9 @@ class _RunEndOverlayState extends State<RunEndOverlay>
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'TOTAL EARNED',
-                            style: TextStyle(
+                          Text(
+                            totalLabel,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
