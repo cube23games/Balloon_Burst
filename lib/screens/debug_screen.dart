@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -143,37 +145,40 @@ ${rawLogs.join('\n')}
             ),
           ),
 
-          // --- QA AUTO TAP ---
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChip(
-                  label: Text(
-                    'AUTO: ${widget.gameState.autoTapEnabled ? 'ON' : 'OFF'}',
+          if (kDebugMode || kEnableQaAutoTap) ...[
+            // --- QA AUTO TAP ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChip(
+                    label: Text(
+                      'AUTO: ${widget.gameState.autoTapEnabled ? 'ON' : 'OFF'}',
+                    ),
+                    selected: widget.gameState.autoTapEnabled,
+                    onSelected: (_) {
+                      setState(() {
+                        widget.gameState.toggleAutoTap();
+                      });
+                    },
                   ),
-                  selected: widget.gameState.autoTapEnabled,
-                  onSelected: (_) {
-                    setState(() {
-                      widget.gameState.toggleAutoTap();
-                    });
-                  },
-                ),
-                ActionChip(
-                  label: Text('MODE: ${widget.gameState.autoTapModeLabel}'),
-                  onPressed: () {
-                    setState(() {
-                      widget.gameState.cycleAutoTapMode();
-                    });
-                  },
-                ),
-              ],
+                  ActionChip(
+                    label: Text('MODE: ${widget.gameState.autoTapModeLabel}'),
+                    onPressed: () {
+                      setState(() {
+                        widget.gameState.cycleAutoTapMode();
+                      });
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+
+          ],
 
           // --- FILTERS ---
           Padding(

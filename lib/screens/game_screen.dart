@@ -992,6 +992,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _handleLongPress() {
+    if (!kDebugMode && !kEnableQaAutoTap) return;
     if (_showIntro) return;
     setState(() => _showHud = !_showHud);
     widget.onRequestDebug();
@@ -1287,28 +1288,29 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   ),
                 ),
-              Positioned(
-                top: 44,
-                left: 16,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.35),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.10),
+              if (kDebugMode || kEnableQaAutoTap)
+                Positioned(
+                  top: 44,
+                  left: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.10),
+                      ),
                     ),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _showHud ? Icons.bug_report : Icons.bug_report_outlined,
-                      color: _showHud ? Colors.amberAccent : Colors.white,
+                    child: IconButton(
+                      icon: Icon(
+                        _showHud ? Icons.bug_report : Icons.bug_report_outlined,
+                        color: _showHud ? Colors.amberAccent : Colors.white,
+                      ),
+                      tooltip: _showHud ? 'Hide debug HUD' : 'Show debug HUD',
+                      onPressed: _handleLongPress,
                     ),
-                    tooltip: _showHud ? 'Hide debug HUD' : 'Show debug HUD',
-                    onPressed: _handleLongPress,
                   ),
                 ),
-              ),
-              if (_showHud && kDebugMode)
+              if (_showHud && (kDebugMode || kEnableQaAutoTap))
                 Positioned(
                   top: 104,
                   left: 16,
