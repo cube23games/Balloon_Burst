@@ -19,26 +19,46 @@ class LeaderboardManager {
       return;
     }
 
-    final List<dynamic> decoded = jsonDecode(raw);
-    _entries = decoded
-        .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final decoded = jsonDecode(raw);
 
-    _sortAndTrim();
+      if (decoded is! List<dynamic>) {
+        throw const FormatException(
+          'Leaderboard data must be a JSON list.',
+        );
+      }
+
+      _entries = decoded
+          .map(
+            (entry) => LeaderboardEntry.fromJson(
+              Map<String, dynamic>.from(entry as Map),
+            ),
+          )
+          .toList();
+
+      _sortAndTrim();
+    } catch (_) {
+      // Corrupt leaderboard data must never prevent app startup.
+      _entries = [];
+      await prefs.remove(_storageKey);
+    }
   }
 
   Future<int?> submit(LeaderboardEntry entry) async {
     _entries.add(entry);
-    _sortAndTrim();
+    _entries.sort((a, b) => b.score.compareTo(a.score));
 
     final placement = _entries.indexOf(entry);
 
-    if (placement >= maxEntries) {
+    if (placement < 0 || placement >= maxEntries) {
       _entries.remove(entry);
+      _sortAndTrim();
       return null;
     }
 
+    _sortAndTrim();
     await _persist();
+
     return placement + 1; // 1-based ranking for UI
   }
 
