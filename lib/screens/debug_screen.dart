@@ -35,6 +35,8 @@ class DebugScreen extends StatefulWidget {
 }
 
 class _DebugScreenState extends State<DebugScreen> {
+  static const int _displayedLogLimit = 100;
+
   String _buildDetailedReport(List<String> rawLogs) {
     final generatedAt = DateTime.now().toIso8601String();
 
@@ -64,10 +66,36 @@ spawnFloor: ${widget.spawner.spawnFloor.toStringAsFixed(2)}
 spawnVariance: ${widget.spawner.spawnVariance.toStringAsFixed(2)}
 lastSpawnBatch: ${widget.spawner.lastSpawnBatch}
 engineElapsedSeconds: ${widget.spawner.engineElapsedSeconds.toStringAsFixed(1)}
+runId: ${widget.gameState.runId}
+runState: ${widget.gameState.runStateLabel}
+endReason: ${widget.gameState.runEndReasonLabel}
+currentLifecycleMisses: ${widget.gameState.runMisses}
+currentLifecycleEscapes: ${widget.gameState.runEscapes}
+totalMissesAcrossRevives: ${widget.gameState.totalMissesObserved}
+totalEscapesAcrossRevives: ${widget.gameState.totalEscapesCounted}
+bestStreak: ${widget.gameState.runBestStreak}
+accuracy: ${widget.gameState.runAccuracy01.toStringAsFixed(4)}
+shieldActiveNow: ${widget.gameState.shieldActiveNow}
+shieldActivations: ${widget.gameState.shieldActivations}
+shieldAbsorptions: ${widget.gameState.shieldAbsorptions}
+shieldEscapesPrevented: ${widget.gameState.shieldEscapesPrevented}
+mercyEscapesPrevented: ${widget.gameState.mercyEscapesPrevented}
+revivesUsed: ${widget.gameState.revivesUsed}
 autoTap: ${widget.gameState.autoTapEnabled}
 autoTapMode: ${widget.gameState.autoTapModeLabel}
+autoTapEverEnabled: ${widget.gameState.autoTapEverEnabled}
+autoTapActivationCount: ${widget.gameState.autoTapActivationCount}
+autoTapModeChangeCount: ${widget.gameState.autoTapModeChangeCount}
+performanceHitches: ${widget.gameState.perfHitchCount}
+maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
+minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
+maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}
 debugFrozen: ${widget.gameState.debugFrozen}
-logCount: ${rawLogs.length}
+exportedLogCount: ${rawLogs.length}
+displayedLogCount: ${rawLogs.length < _displayedLogLimit ? rawLogs.length : _displayedLogLimit}
+displayedLogLimit: $_displayedLogLimit
+logCapacity: ${widget.gameState.debugLogCapacity}
+logBufferFull: ${rawLogs.length >= widget.gameState.debugLogCapacity}
 
 NOTES
 PERF SNAP = periodic performance snapshot.
@@ -112,7 +140,9 @@ ${rawLogs.join('\n')}
   Widget build(BuildContext context) {
     // Authoritative logs now come from GameState -> DebugLog
     final rawLogs = widget.gameState.debugLogs;
-    final logs = rawLogs.reversed.toList();
+    final logs = rawLogs.reversed
+        .take(_displayedLogLimit)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(

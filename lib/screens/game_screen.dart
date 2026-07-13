@@ -241,6 +241,8 @@ class _GameScreenState extends State<GameScreen>
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    widget.gameState.resetRunEvidence();
+
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
       type: DebugEventType.system,
@@ -318,6 +320,36 @@ class _GameScreenState extends State<GameScreen>
     if (items.length <= maxItems) return;
 
     items.removeRange(0, items.length - maxItems);
+  }
+
+  int _syncQaRunEvidence() {
+    final snapshot =
+        widget.engine.runLifecycle.getSnapshot();
+
+    widget.gameState.syncRunEvidence(
+      runId: snapshot.runId,
+      state: snapshot.state.name,
+      endReason:
+          snapshot.endReason?.name ?? 'none',
+      misses: snapshot.misses,
+      escapes: snapshot.escapes,
+      bestStreak: snapshot.bestStreak,
+      accuracy01: snapshot.accuracy01,
+      shieldActive:
+          widget.engine.runLifecycle.isShieldActive,
+    );
+
+    widget.gameState.recordDifficultyEvidence(
+      combinedSpeedMultiplier:
+          widget.spawner.combinedSpeedMultiplier,
+      effectiveSpawnInterval:
+          widget.spawner.effectiveSpawnInterval,
+      spawnBatch:
+          widget.spawner.lastSpawnBatch,
+      hitches: _perfHitchCount,
+    );
+
+    return snapshot.escapes;
   }
 
   int _resumeSecondsRemaining() {
@@ -486,6 +518,7 @@ class _GameScreenState extends State<GameScreen>
 
   void _onTick(Duration elapsed) {
     if (_isRunEnded) {
+      _syncQaRunEvidence();
       _lastTime = elapsed;
       _maybeSubmitLeaderboard();
       if (mounted) setState(() {});
@@ -535,10 +568,22 @@ class _GameScreenState extends State<GameScreen>
 
     widget.engine.update(dt);
 
-    final shieldNow = widget.engine.runLifecycle.isShieldActive;
+    final shieldNow =
+        widget.engine.runLifecycle.isShieldActive;
+
+    if (!_previousShieldState && shieldNow) {
+      widget.gameState.recordShieldActivation(
+        world: widget.spawner.currentWorld,
+        pops: widget.spawner.totalPops,
+        runSeconds:
+            widget.spawner.engineElapsedSeconds,
+      );
+    }
+
     if (_previousShieldState && !shieldNow) {
       _triggerShieldBreakFeedback();
     }
+
     _previousShieldState = shieldNow;
 
     final currentBalance = widget.engine.wallet.balance;
@@ -586,6 +631,7 @@ class _GameScreenState extends State<GameScreen>
     if (widget.spawner.totalPops >= _tapJunkieVictoryPops &&
         widget.engine.runLifecycle.state == RunState.running) {
       widget.engine.runLifecycle.endRun(EndReason.victory);
+      _syncQaRunEvidence();
       _maybeSubmitLeaderboard();
       if (mounted) setState(() {});
       return;
@@ -650,18 +696,40 @@ class _GameScreenState extends State<GameScreen>
 
       if (tapTime != null &&
           DateTime.now().difference(tapTime) < _mercyWindow) {
-        widget.gameState.log(
-          'MERCY POP PREVENTED ESCAPE',
-          type: DebugEventType.system,
+        widget.gameState.recordMercyEscapePrevention(
+          escapesPrevented: escapedThisTick,
+          world: widget.spawner.currentWorld,
+          pops: widget.spawner.totalPops,
+          runSeconds:
+              widget.spawner.engineElapsedSeconds,
         );
+
         escapedThisTick = 0;
       }
 
-      if (escapedThisTick > 0 && !_reviveProtectionActive) {
-        _controller.registerEscapes(escapedThisTick);
+      if (escapedThisTick > 0 &&
+          !_reviveProtectionActive) {
+        if (widget.engine.runLifecycle.isShieldActive) {
+          widget.gameState.recordShieldAbsorption(
+            escapesPrevented: escapedThisTick,
+            world: widget.spawner.currentWorld,
+            pops: widget.spawner.totalPops,
+            runSeconds:
+                widget.spawner.engineElapsedSeconds,
+          );
+        }
+
+        _controller.registerEscapes(
+          escapedThisTick,
+        );
+
         widget.engine.runLifecycle.report(
           EscapeEvent(count: escapedThisTick),
         );
+
+        if (_isRunEnded) {
+          _syncQaRunEvidence();
+        }
       }
     }
 
@@ -684,9 +752,12 @@ class _GameScreenState extends State<GameScreen>
       onTapAt: _handleAutoTapAt,
     );
 
-    final escapesNow = widget.engine.runLifecycle.getSnapshot().escapes;
+    final escapesNow =
+        _syncQaRunEvidence();
 
-    _dangerMode = _controller.missCount >= 9 || escapesNow >= 2;
+    _dangerMode =
+        _controller.missCount >= 9 ||
+        escapesNow >= 2;
 
     if (_dangerMode) {
       _dangerPulseT += dt * 1.45;
@@ -914,7 +985,13 @@ class _GameScreenState extends State<GameScreen>
       }
 
       if (!_reviveProtectionActive) {
-        widget.engine.runLifecycle.report(const MissEvent());
+        widget.engine.runLifecycle.report(
+          const MissEvent(),
+        );
+
+        if (_isRunEnded) {
+          _syncQaRunEvidence();
+        }
       }
 
       _trimVisualEffects();
@@ -1043,6 +1120,11 @@ class _GameScreenState extends State<GameScreen>
     _surge.reset();
 
     widget.gameState.clearLogs();
+    widget.gameState.resetRunEvidence();
+
+    _previousShieldState = false;
+    _perfHitchCount = 0;
+    _perfTraceClock = 0.0;
     _lastTime = Duration.zero;
 
     widget.engine.difficulty.reset();
@@ -1060,6 +1142,15 @@ class _GameScreenState extends State<GameScreen>
     final success = await widget.engine.wallet.spendCoins(_reviveCost);
     if (!success) return;
 
+    widget.gameState.recordRevive(
+      missesBeforeReset: summary.misses,
+      escapesBeforeReset: summary.escapes,
+      world: widget.spawner.currentWorld,
+      pops: widget.spawner.totalPops,
+      runSeconds:
+          widget.spawner.engineElapsedSeconds,
+    );
+
     // Keep the original leaderboard submission. A revive must not submit
     // the same logical run twice. Clear only the displayed placement so it
     // is not presented beside later cumulative stats.
@@ -1070,6 +1161,7 @@ class _GameScreenState extends State<GameScreen>
     _controller.clearDangerTelemetryForRevive();
 
     widget.engine.runLifecycle.revive();
+    _syncQaRunEvidence();
 
     _reviveProtectionActive = true;
     _reviveProtectionTimer?.cancel();
