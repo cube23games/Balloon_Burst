@@ -62,8 +62,8 @@ class DifficultyManager {
   }
 
   double _currentSpeedMultiplier() {
-    // Speed increases ~12% per level.
-    return 1.0 + (_level - 1) * 0.12;
+    // Speed increases ~4% per level.
+    return 1.0 + (_level - 1) * 0.04;
   }
 
   int _currentMaxSpawns() {
