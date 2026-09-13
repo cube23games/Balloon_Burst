@@ -5,7 +5,8 @@
 
     <application
         android:label="Balloon Burst"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@drawable/balloon_burst_icon"
+        android:roundIcon="@drawable/balloon_burst_icon">
 
         <!-- REQUIRED for Flutter v2 embedding -->
         <meta-data

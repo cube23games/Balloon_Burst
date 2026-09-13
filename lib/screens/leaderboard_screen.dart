@@ -217,6 +217,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F2F),
       appBar: AppBar(
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
         backgroundColor: const Color(0xFF0B0F2F),
         elevation: 0,
         title: const Text(
