@@ -29,7 +29,11 @@ mkdir -p "$key_dir"
 if [[ ! -f "$keystore" ]]; then
   # Never generate a replacement when GitHub already has an existing key:
   # replacement would silently break Android update compatibility.
-  if gh secret list -R "$repo" | grep -q '^BB_SIGNING_KEYSTORE_B64[[:space:]]'; then
+  if ! secret_names="$(gh secret list -R "$repo")"; then
+    printf 'STOP: Could not inspect existing repository secrets. No new key generated.\n' >&2
+    exit 1
+  fi
+  if printf '%s\n' "$secret_names" | grep -q '^BB_SIGNING_KEYSTORE_B64[[:space:]]'; then
     printf 'STOP: GitHub already has a signing key, but local keystore is absent.\n' >&2
     printf 'Restore the original QA keystore backup before proceeding.\n' >&2
     exit 1
