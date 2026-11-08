@@ -141,7 +141,7 @@ class _LevelTile extends StatelessWidget {
         ),
         trailing: available
             ? Text(
-                stars == 0 ? 'PLAY' : '${'★' * stars}${'☆' * (3 - stars)}',
+                stars == 0 ? 'PLAY' : '${List<String>.filled(stars, '★').join()}${List<String>.filled(3 - stars, '☆').join()}',
                 style: const TextStyle(color: Color(0xFFFFDB6F)),
               )
             : const Icon(Icons.lock_outline, color: Colors.white54),
