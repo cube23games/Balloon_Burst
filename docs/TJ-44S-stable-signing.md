@@ -92,3 +92,17 @@ and version-code continuity must be planned before public distribution.
   can later read back. Preserve a secure original backup.
 - Track unrelated missing "Main Menu" action in Endless RunEndOverlay in
   issue #4 rather than modifying game UI in this signing patch.
+
+## Successful signing run #1 — 2026-11-08
+
+GitHub Actions run [42460393482](https://github.com/cube23games/Balloon_Burst/actions/runs/42460393482) at commit
+`6d05c227cff66196bf0313ad4649a49e76360f59`, workflow run number `61`, completed successfully.
+All unit tests, permanent keystore preparation, both signed APK builds,
+certificate SHA-256 comparison, versionCode equality, and both artifact uploads
+passed. This confirms **within-run** identity only.
+
+**Next acceptance:** Trigger another run on the identical branch, check
+`GITHUB_RUN_NUMBER` rises, ensure the signer fingerprint matches the first
+successful run, then install the first QA APK and update it in place using the
+second. Confirm the Skyward stars and coin balance survive. Do not claim
+install-over-update continuity from CI alone.
