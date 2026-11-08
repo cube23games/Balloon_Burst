@@ -31,7 +31,7 @@ jobs:
       - name: Verify Skyward World 1 unit tests
         run: |
           flutter pub get
-          flutter test test/skyward_world_one_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart
 
       - name: Install Android command-line tools
         shell: bash
