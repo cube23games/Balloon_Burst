@@ -56,6 +56,9 @@ class AudioPlayerService {
   static int _popIndex = 0;
   static int _coinIndex = 0;
 
+  static final AudioPlayer _leadWhistlePlayer =
+      AudioPlayer()..setAudioContext(_gameAudioContext);
+
   static final AudioPlayer _surgePlayer =
       AudioPlayer()..setAudioContext(_gameAudioContext);
 
@@ -158,6 +161,21 @@ class AudioPlayerService {
       _surgePlayer.play(
         AssetSource('audio/surge.wav'),
         volume: 1.0,
+      );
+    } catch (_) {}
+  }
+
+  // ============================================================
+  // SKYWARD LEAD WARNING (ORIGINAL DESCENDING WHISTLE)
+  // ============================================================
+
+  static void playLeadWhistle() {
+    if (_muted) return;
+    try {
+      _leadWhistlePlayer.stop();
+      _leadWhistlePlayer.play(
+        AssetSource('audio/lead_whistle.wav'),
+        volume: 0.72,
       );
     } catch (_) {}
   }
