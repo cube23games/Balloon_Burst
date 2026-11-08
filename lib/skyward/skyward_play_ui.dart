@@ -123,7 +123,7 @@ class SkywardResultOverlay extends StatelessWidget {
                     const SizedBox(height: 20),
                     if (won)
                       Text(
-                        '${'★' * run.stars}${'☆' * (3 - run.stars)}',
+                        '${List<String>.filled(run.stars, '★').join()}${List<String>.filled(3 - run.stars, '☆').join()}',
                         style: const TextStyle(
                           color: Color(0xFFFFDB6F),
                           fontSize: 42,
