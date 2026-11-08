@@ -29,12 +29,18 @@ import 'package:balloon_burst/screens/leaderboard_screen.dart';
 import 'package:balloon_burst/tj_engine/engine/run/models/run_event.dart';
 import 'package:balloon_burst/tj_engine/engine/run/models/run_state.dart';
 import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
+import 'package:balloon_burst/skyward/world_one.dart';
+import 'package:balloon_burst/skyward/skyward_play_ui.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState gameState;
   final BalloonSpawner spawner;
   final TJEngine engine;
   final VoidCallback onRequestDebug;
+  final SkywardLevelRun? skywardRun;
+  final ValueChanged<SkywardLevelRun>? onSkywardCompleted;
+  final VoidCallback? onSkywardExit;
+  final VoidCallback? onSkywardNext;
 
   const GameScreen({
     super.key,
@@ -42,6 +48,10 @@ class GameScreen extends StatefulWidget {
     required this.spawner,
     required this.engine,
     required this.onRequestDebug,
+    this.skywardRun,
+    this.onSkywardCompleted,
+    this.onSkywardExit,
+    this.onSkywardNext,
   });
 
   @override
@@ -53,6 +63,9 @@ class _GameScreenState extends State<GameScreen>
   late final Ticker _ticker;
   late final GameController _controller;
   late final WorldSurgePulse _surge;
+  SkywardLevelRun? _skywardRun;
+
+  bool get _isSkyward => _skywardRun != null;
 
   Timer? _shieldFlashTimer;
   Timer? _reviveProtectionTimer;
@@ -236,6 +249,7 @@ class _GameScreenState extends State<GameScreen>
   @override
   void initState() {
     super.initState();
+    _skywardRun = widget.skywardRun;
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
@@ -628,7 +642,7 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    if (widget.spawner.totalPops >= _tapJunkieVictoryPops &&
+    if (!_isSkyward && widget.spawner.totalPops >= _tapJunkieVictoryPops &&
         widget.engine.runLifecycle.state == RunState.running) {
       widget.engine.runLifecycle.endRun(EndReason.victory);
       _syncQaRunEvidence();
@@ -723,9 +737,19 @@ class _GameScreenState extends State<GameScreen>
           escapedThisTick,
         );
 
+        if (_skywardRun != null) {
+          for (var i = 0; i < escapedThisTick; i++) {
+            _skywardRun!.recordEscape();
+          }
+        }
+
         widget.engine.runLifecycle.report(
           EscapeEvent(count: escapedThisTick),
         );
+
+        if (_skywardRun?.isFailed == true && !_isRunEnded) {
+          widget.engine.runLifecycle.endRun(EndReason.escapeLimit);
+        }
 
         if (_isRunEnded) {
           _syncQaRunEvidence();
@@ -789,6 +813,8 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _maybeSubmitLeaderboard() {
+    // Level-based attempts must not contaminate Endless Arcade rankings.
+    if (_isSkyward) return;
     final summary = widget.engine.runLifecycle.latestSummary;
     if (summary == null) return;
 
@@ -930,6 +956,7 @@ class _GameScreenState extends State<GameScreen>
     final missesAfter = _controller.missCount;
 
     if (missesAfter > missesBefore) {
+      _skywardRun?.recordMiss();
       _missPopups.add(
         MissPopup(
           x: p.dx,
@@ -1087,6 +1114,27 @@ class _GameScreenState extends State<GameScreen>
     if (nextMilestone > prevMilestone) {
       AudioPlayerService.playStreakMilestone(nextMilestone);
     }
+
+    // Count only confirmed hits after the existing TapHandler completes.
+    // TJ-44B supports the original single-pop balloon types. Chain scoring
+    // will extend this event bridge in TJ-44E.
+    if (_skywardRun != null && widget.spawner.totalPops > popsBefore) {
+      _skywardRun!.recordPop();
+      if (_skywardRun!.isComplete) {
+        widget.engine.runLifecycle.endRun(EndReason.victory);
+        _syncQaRunEvidence();
+        widget.onSkywardCompleted?.call(_skywardRun!);
+      }
+    }
+  }
+
+  void _exitSkyward() {
+    if (!_isSkyward) return;
+    if (!_isRunEnded) {
+      widget.engine.runLifecycle.endRun(EndReason.playerQuit);
+      _syncQaRunEvidence();
+    }
+    widget.onSkywardExit?.call();
   }
 
   void _handleLongPress() {
@@ -1097,6 +1145,9 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _replay() {
+    if (_skywardRun != null) {
+      _skywardRun = SkywardLevelRun(_skywardRun!.level);
+    }
     _balloons.clear();
     _particles.clear();
     _shockwaves.clear();
@@ -1370,6 +1421,11 @@ class _GameScreenState extends State<GameScreen>
                 streak: widget.engine.runLifecycle.getSnapshot().streak,
               ),
               _buildLifecyclePauseOverlay(),
+              if (_skywardRun != null)
+                SkywardObjectiveHud(
+                  run: _skywardRun!,
+                  onExit: _exitSkyward,
+                ),
               if (_showIntro)
                 CarnivalIntroOverlay(
                   onComplete: () {
@@ -1378,7 +1434,16 @@ class _GameScreenState extends State<GameScreen>
                     });
                   },
                 ),
-              if (_isRunEnded && summary != null)
+              if (_isSkyward && _isRunEnded && _skywardRun != null)
+                SkywardResultOverlay(
+                  run: _skywardRun!,
+                  onReplay: _replay,
+                  onMap: _exitSkyward,
+                  onNext: _skywardRun!.isComplete
+                      ? widget.onSkywardNext
+                      : null,
+                ),
+              if (!_isSkyward && _isRunEnded && summary != null)
                 RunEndOverlay(
                   state: RunEndState.fromSummary(summary),
                   onReplay: _replay,
