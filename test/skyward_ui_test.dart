@@ -49,8 +49,8 @@ void main() {
     expect(find.text('★★★'), findsOneWidget);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [2]);
-    // Level 3 is not implemented yet, even if later unlocked.
-    expect(SkywardSelectScreen.playableThrough, 2);
+    // Lead balloons make Level 3 playable; wind levels remain gated.
+    expect(SkywardSelectScreen.playableThrough, 3);
   });
 
   testWidgets('Result overlay exposes Next, Replay and Map actions', (tester) async {
