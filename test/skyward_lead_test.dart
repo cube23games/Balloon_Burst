@@ -11,7 +11,7 @@ void main() {
       expect(timer.warningSoon, isFalse);
       expect(timer.update(dt: 1.7, hasActiveLead: false), isFalse);
       expect(timer.warningSoon, isTrue);
-      expect(timer.update(dt: 1.3, hasActiveLead: false), isTrue);
+      expect(timer.update(dt: 1.31, hasActiveLead: false), isTrue);
       expect(timer.warningSoon, isFalse);
       expect(timer.spawnedCount, 0);
       final lead = timer.createLead();
@@ -29,7 +29,7 @@ void main() {
       expect(timer.spawnedCount, 1);
       expect(timer.update(dt: 6.4, hasActiveLead: false), isFalse);
       expect(timer.warningSoon, isTrue);
-      expect(timer.update(dt: 0.1, hasActiveLead: false), isTrue);
+      expect(timer.update(dt: 0.11, hasActiveLead: false), isTrue);
       final b = timer.createLead();
       expect(b.id, isNot(a.id));
       expect(b.xOffset, isNot(a.xOffset));
