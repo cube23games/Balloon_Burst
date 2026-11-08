@@ -31,6 +31,7 @@ import 'package:balloon_burst/tj_engine/engine/run/models/run_state.dart';
 import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
 import 'package:balloon_burst/skyward/world_one.dart';
 import 'package:balloon_burst/skyward/skyward_play_ui.dart';
+import 'package:balloon_burst/skyward/lead_balloon_controller.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState gameState;
@@ -64,6 +65,10 @@ class _GameScreenState extends State<GameScreen>
   late final GameController _controller;
   late final WorldSurgePulse _surge;
   SkywardLevelRun? _skywardRun;
+  late final LeadBalloonController _leadController;
+
+  bool get _levelUsesLead =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.leadBalloon) ?? false;
 
   bool get _isSkyward => _skywardRun != null;
 
@@ -250,6 +255,7 @@ class _GameScreenState extends State<GameScreen>
   void initState() {
     super.initState();
     _skywardRun = widget.skywardRun;
+    _leadController = LeadBalloonController();
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
@@ -634,6 +640,21 @@ class _GameScreenState extends State<GameScreen>
           widget.engine.difficulty.snapshot.maxSimultaneousSpawns,
     );
 
+    if (_levelUsesLead && !_showIntro && _lastSize.height > 0) {
+      final hasLead = _balloons.any(
+        (balloon) => balloon.type == BalloonType.lead && !balloon.isPopped,
+      );
+      if (_leadController.update(dt: dt, hasActiveLead: hasLead)) {
+        final lead = _leadController.createLead();
+        _balloons.add(lead);
+        AudioPlayerService.playLeadWhistle();
+        widget.gameState.log(
+          'SKYWARD LEAD SPAWN id=${lead.id} y=${lead.y.toStringAsFixed(1)}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
     final currentWorld = widget.spawner.currentWorld;
     if (currentWorld != _lastReportedWorld) {
       _lastReportedWorld = currentWorld;
@@ -665,9 +686,13 @@ class _GameScreenState extends State<GameScreen>
           engineSpeed *
           b.riseSpeedMultiplier;
 
-      final moved = b.movedBy(-speed * dt);
+      final isLead = b.type == BalloonType.lead;
+      final moved = b.movedBy(isLead
+          ? LeadBalloonController.descentPixelsPerSecond *
+              b.riseSpeedMultiplier * dt
+          : -speed * dt);
       final driftX = moved.driftedX(
-        amplitude: 0.035,
+        amplitude: isLead ? 0.015 : 0.035,
         frequency: 0.015,
       );
 
@@ -699,8 +724,20 @@ class _GameScreenState extends State<GameScreen>
 
     for (int i = _balloons.length - 1; i >= 0; i--) {
       final b = _balloons[i];
-      if (b.y < -balloonRadius) {
-        if (!b.isPopped) escapedThisTick++;
+      if (LeadBalloonController.isBeyondExit(
+        balloon: b,
+        viewportHeight: _lastSize.height,
+        margin: balloonRadius,
+      )) {
+        if (!b.isPopped) {
+          escapedThisTick++;
+          if (b.type == BalloonType.lead) {
+            widget.gameState.log(
+              'SKYWARD LEAD ESCAPED id=${b.id}',
+              type: DebugEventType.system,
+            );
+          }
+        }
         _balloons.removeAt(i);
       }
     }
@@ -945,7 +982,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     widget.engine.input.registerTap();
-    TapHandler.handleTap(
+    final poppedBalloon = TapHandler.handleTap(
       details: details,
       lastSize: _lastSize,
       balloons: _balloons,
@@ -1044,7 +1081,15 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
-    widget.engine.runLifecycle.report(PopEvent(points: 1));
+    final leadCaught = poppedBalloon?.type == BalloonType.lead;
+    final earnedPoints = leadCaught ? 5 : 1;
+    if (leadCaught) {
+      widget.gameState.log(
+        'SKYWARD LEAD CAUGHT id=${poppedBalloon!.id} bonus=$earnedPoints',
+        type: DebugEventType.system,
+      );
+    }
+    widget.engine.runLifecycle.report(PopEvent(points: earnedPoints));
 
     final shouldPlayPopSound =
         !_skipPopAudioDuringLagForgiveness || _lagForgivenessTicks == 0;
@@ -1056,7 +1101,7 @@ class _GameScreenState extends State<GameScreen>
     widget.engine.juice.spawnScoreBurst(
       x: p.dx,
       y: p.dy,
-      value: 1,
+      value: earnedPoints,
       isPerfect: _controller.lastTapPerfect,
     );
 
@@ -1123,7 +1168,7 @@ class _GameScreenState extends State<GameScreen>
     // TJ-44B supports the original single-pop balloon types. Chain scoring
     // will extend this event bridge in TJ-44E.
     if (_skywardRun != null && widget.spawner.totalPops > popsBefore) {
-      _skywardRun!.recordPop();
+      _skywardRun!.recordPop(leadCaught: leadCaught);
       if (_skywardRun!.isComplete) {
         widget.engine.runLifecycle.endRun(EndReason.victory);
         _syncQaRunEvidence();
@@ -1149,6 +1194,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _replay() {
+    _leadController.reset();
     if (_skywardRun != null) {
       _skywardRun = SkywardLevelRun(_skywardRun!.level);
     }
@@ -1428,6 +1474,7 @@ class _GameScreenState extends State<GameScreen>
               if (_skywardRun != null)
                 SkywardObjectiveHud(
                   run: _skywardRun!,
+                  leadWarning: _levelUsesLead && _leadController.warningSoon,
                   onExit: _exitSkyward,
                 ),
               if (_showIntro)
