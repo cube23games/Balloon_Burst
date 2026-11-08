@@ -3,11 +3,13 @@ import 'package:balloon_burst/skyward/world_one.dart';
 
 class SkywardObjectiveHud extends StatelessWidget {
   final SkywardLevelRun run;
+  final bool leadWarning;
   final VoidCallback onExit;
 
   const SkywardObjectiveHud({
     super.key,
     required this.run,
+    this.leadWarning = false,
     required this.onExit,
   });
 
@@ -55,6 +57,14 @@ class SkywardObjectiveHud extends StatelessWidget {
                       Text(
                         'BEST COMBO ${run.bestCombo}/${level.comboRequired}',
                         style: const TextStyle(color: Colors.white70),
+                      ),
+                    if (leadWarning)
+                      const Text(
+                        '↓ WHISTLE! LEAD INCOMING',
+                        style: TextStyle(
+                          color: Color(0xFFFFCC4D),
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     if (level.leadCatchesRequired > 0)
                       Text(
