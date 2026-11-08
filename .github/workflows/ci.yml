@@ -142,10 +142,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          signer="$HOME/android-sdk/build-tools/35.0.0/apksigner"
-          aapt="$HOME/android-sdk/build-tools/35.0.0/aapt"
-          test -x "$signer"
-          test -x "$aapt"
+          # sdkmanager can install into the runner's preconfigured SDK
+          # rather than the downloaded CLI tools directory. Resolve both
+          # binaries together from an existing SDK instead of assuming HOME.
+          signer=""
+          aapt=""
+          for sdk in "$HOME/android-sdk" "${ANDROID_HOME:-}" \
+                     "${ANDROID_SDK_ROOT:-}" "/usr/local/lib/android/sdk" \
+                     "/opt/android-sdk" "$HOME/Android/Sdk"; do
+            [[ -n "$sdk" ]] || continue
+            build_tools="$sdk/build-tools/35.0.0"
+            if [[ -x "$build_tools/apksigner" && -x "$build_tools/aapt" ]]; then
+              signer="$build_tools/apksigner"
+              aapt="$build_tools/aapt"
+              echo "Using Android verification tools from: $build_tools"
+              break
+            fi
+          done
+          if [[ -z "$signer" || -z "$aapt" ]]; then
+            echo "::error::Android SDK build-tools/35.0.0 not found in available SDK roots."
+            echo "ANDROID_HOME=${ANDROID_HOME:-unset}; ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+            exit 1
+          fi
 
           cert_sha() {
             "$signer" verify --verbose --print-certs "$1" |
