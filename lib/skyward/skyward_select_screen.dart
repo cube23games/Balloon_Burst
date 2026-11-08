@@ -114,7 +114,9 @@ class _LevelTile extends StatelessWidget {
     final subtitle = !isImplemented
         ? 'In development'
         : isUnlocked
-            ? '${level.popsRequired} pops  ·  Max ${level.maxEscapes} escapes'
+            ? '${level.popsRequired} pops  ·  '
+                '${level.comboRequired > 0 ? 'Combo ${level.comboRequired}  ·  ' : ''}'
+                'Max ${level.maxEscapes} escapes'
             : 'Complete the previous level';
     return Card(
       color: available ? const Color(0xFF204B70) : const Color(0xFF1B2840),
