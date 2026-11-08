@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,6 +35,41 @@ jobs:
         run: |
           flutter pub get
           flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart
+
+      # Trusted same-repo PRs and main can use the permanent signing key.
+      # Forked PRs run tests but never receive or use signing secrets.
+      - name: Prepare permanent release signing key
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        env:
+          BB_SIGNING_KEYSTORE_B64: ${{ secrets.BB_SIGNING_KEYSTORE_B64 }}
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in BB_SIGNING_KEYSTORE_B64 BB_SIGNING_STORE_PASSWORD BB_SIGNING_KEY_ALIAS BB_SIGNING_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required Actions secret $name is not configured."
+              exit 1
+            fi
+          done
+
+          umask 077
+          mkdir -p "$RUNNER_TEMP/balloon-signing"
+          key_path="$RUNNER_TEMP/balloon-signing/balloon-qa-release.p12"
+          if ! printf '%s' "$BB_SIGNING_KEYSTORE_B64" | base64 --decode > "$key_path"; then
+            echo "::error::Signing keystore secret is not valid base64."
+            exit 1
+          fi
+          chmod 600 "$key_path"
+          if ! keytool -list -keystore "$key_path" \
+            -storepass "$BB_SIGNING_STORE_PASSWORD" \
+            -alias "$BB_SIGNING_KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::Signing keystore or key alias could not be verified."
+            exit 1
+          fi
+          echo "BB_SIGNING_KEYSTORE_FILE=$key_path" >> "$GITHUB_ENV"
 
       - name: Install Android command-line tools
         shell: bash
@@ -66,36 +104,96 @@ jobs:
           rm -rf artifacts
           mkdir -p artifacts
 
+      # Both APKs deliberately use one signing identity and one versionCode.
+      # Do not replace these credentials with ephemeral debug keys.
       - name: Build public release APK
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
         run: |
           flutter clean
           flutter pub get
-          flutter build apk --release
+          flutter build apk --release --build-number="$GITHUB_RUN_NUMBER"
           cp \
             build/app/outputs/flutter-apk/app-release.apk \
             artifacts/balloon-burst-public-release.apk
 
+      - name: Build internal QA APK
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          flutter build apk \
+            --release \
+            --build-number="$GITHUB_RUN_NUMBER" \
+            --dart-define=ENABLE_QA_AUTOTAP=true
+          cp \
+            build/app/outputs/flutter-apk/app-release.apk \
+            artifacts/balloon-burst-internal-qa.apk
+
+      - name: Verify signatures and incrementing versionCode
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          signer="$HOME/android-sdk/build-tools/35.0.0/apksigner"
+          aapt="$HOME/android-sdk/build-tools/35.0.0/aapt"
+          test -x "$signer"
+          test -x "$aapt"
+
+          cert_sha() {
+            "$signer" verify --verbose --print-certs "$1" |
+              awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}'
+          }
+          version_code() {
+            "$aapt" dump badging "$1" |
+              sed -n "s/.*versionCode='\\([0-9][0-9]*\\)'.*/\\1/p" | head -n 1
+          }
+          public="artifacts/balloon-burst-public-release.apk"
+          qa="artifacts/balloon-burst-internal-qa.apk"
+          public_cert="$(cert_sha "$public")"
+          qa_cert="$(cert_sha "$qa")"
+          public_version="$(version_code "$public")"
+          qa_version="$(version_code "$qa")"
+
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" ]]; then
+            echo "::error::Public and QA signing certificates differ or are missing."
+            exit 1
+          fi
+          if [[ "$public_version" != "$GITHUB_RUN_NUMBER" ||
+                "$qa_version" != "$GITHUB_RUN_NUMBER" ]]; then
+            echo "::error::APK build numbers differ or are not the CI run number."
+            exit 1
+          fi
+          {
+            echo "### Stable APK signing verified"
+            echo "- Public and internal QA share SHA-256 certificate: \`$qa_cert\`"
+            echo "- Both use Android versionCode: $qa_version"
+            echo "- Commit: $GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload public release APK
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@v4
         with:
           name: balloon-burst-public-release-apk
           path: artifacts/balloon-burst-public-release.apk
           if-no-files-found: error
 
-      - name: Build internal QA APK
-        run: |
-          flutter clean
-          flutter pub get
-          flutter build apk \
-            --release \
-            --dart-define=ENABLE_QA_AUTOTAP=true
-          cp \
-            build/app/outputs/flutter-apk/app-release.apk \
-            artifacts/balloon-burst-internal-qa.apk
-
       - name: Upload internal QA APK
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-artifact@v4
         with:
           name: balloon-burst-internal-qa-apk
           path: artifacts/balloon-burst-internal-qa.apk
           if-no-files-found: error
+
+      - name: Remove temporary signing keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/balloon-signing/balloon-qa-release.p12"
