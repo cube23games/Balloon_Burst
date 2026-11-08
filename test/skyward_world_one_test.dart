@@ -60,6 +60,22 @@ void main() {
       expect(run.tapAccuracy, 1.0);
     });
 
+    test('Cloud Combos requires a six-hit streak, not only twenty pops', () {
+      final run = SkywardLevelRun(SkywardWorldOne.level(2));
+      for (var i = 0; i < 20; i++) {
+        run.recordPop();
+        if ((i + 1) % 5 == 0) run.recordMiss();
+      }
+      expect(run.popped, 20);
+      expect(run.bestCombo, 5);
+      expect(run.isComplete, isFalse);
+      for (var i = 0; i < 6; i++) {
+        run.recordPop();
+      }
+      expect(run.bestCombo, 6);
+      expect(run.isComplete, isTrue);
+    });
+
     test('lead and chain objectives must both be met', () {
       final level = SkywardWorldOne.level(7);
       final run = SkywardLevelRun(level);
