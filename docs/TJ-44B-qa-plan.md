@@ -12,7 +12,7 @@
 - Skyward Journey shows eight defined World 1 levels. **Only Levels 1 and 2
   are playable**. Levels 3–8 are marked *In development*; they require
   descending leads, wind, and ribbon physics not implemented yet.
-- Level 1: pop 12 balloons; Level 2: pop 20 balloons.
+- Level 1: pop 12 balloons; Level 2: pop 20 balloons **and reach a six-hit combo**.
 - The current `GameScreen`, `TapHandler`, `BalloonSpawner`, `TJEngine`,
   sound, painter, physics, HUD telemetry, and existing world speeds are reused.
 - Confirmed hit/miss/escape events flow into `SkywardLevelRun`.
@@ -36,7 +36,7 @@
    counter, and no clipping/overlap of objective HUD on the target phone.
 4. Pop 12 balloons. Confirm **LEVEL CLEARED**, stars, replay/map and NEXT.
    The result must not show the original Endless Arcade leaderboard.
-5. Tap NEXT; Level 2 begins with **0/20** progress and working touch input.
+5. Tap NEXT; Level 2 begins with **0/20** pops and **0/6 best combo**.\n   Confirm a missed tap resets the active streak, but the best completed streak\n   survives; the level must not clear on 20 pops alone unless the six-hit\n   combo was achieved.
 6. Fail Level 2 via misses or three unshielded escapes; verify TRY AGAIN,
    correct end state, and no unlocked Level 3.
 7. Replay Level 2. Clear it; select LEVEL MAP and verify saved stars. Force
