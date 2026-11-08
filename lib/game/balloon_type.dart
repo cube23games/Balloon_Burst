@@ -2,6 +2,7 @@ enum BalloonType {
   standard,
   smallFast,
   largeSlow,
+  lead,
 }
 
 class BalloonTypeConfig {
@@ -35,6 +36,14 @@ const Map<BalloonType, BalloonTypeConfig> balloonTypeConfig = {
     hitRadiusMultiplier: 0.9,
     zLayer: 0,
     spawnWeight: 0.35,
+  ),
+
+  BalloonType.lead: BalloonTypeConfig(
+    visualScale: 1.35,
+    speedMultiplier: 0.82,
+    hitRadiusMultiplier: 1.3,
+    zLayer: 3,
+    spawnWeight: 0.0, // World 1 lead scheduler spawns these explicitly.
   ),
 
   BalloonType.largeSlow: BalloonTypeConfig(
