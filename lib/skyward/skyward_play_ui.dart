@@ -51,6 +51,11 @@ class SkywardObjectiveHud extends StatelessWidget {
                       'ESCAPES ${run.escaped}/${level.maxEscapes}',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
+                    if (level.comboRequired > 0)
+                      Text(
+                        'BEST COMBO ${run.bestCombo}/${level.comboRequired}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     if (level.leadCatchesRequired > 0)
                       Text(
                         'LEAD ${run.leadCatches}/${level.leadCatchesRequired}',
