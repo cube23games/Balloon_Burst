@@ -737,7 +737,11 @@ class _GameScreenState extends State<GameScreen>
           escapedThisTick,
         );
 
-        if (_skywardRun != null) {
+        // Keep level failures consistent with TJ Engine's active shield:
+        // one shielded escape event is absorbed rather than charged.
+        final shieldAbsorbsEvent =
+            widget.engine.runLifecycle.isShieldActive;
+        if (_skywardRun != null && !shieldAbsorbsEvent) {
           for (var i = 0; i < escapedThisTick; i++) {
             _skywardRun!.recordEscape();
           }
