@@ -9,6 +9,7 @@ class SkywardLevelDefinition {
   final String title;
   final int popsRequired;
   final int leadCatchesRequired;
+  final int comboRequired;
   final int chainReactionsRequired;
   final int maxEscapes;
   final Set<SkywardHazard> hazards;
@@ -19,6 +20,7 @@ class SkywardLevelDefinition {
     required this.title,
     required this.popsRequired,
     this.leadCatchesRequired = 0,
+    this.comboRequired = 0,
     this.chainReactionsRequired = 0,
     this.maxEscapes = 2,
     this.hazards = const <SkywardHazard>{},
@@ -26,6 +28,7 @@ class SkywardLevelDefinition {
   })  : assert(number >= 1 && number <= 8),
         assert(popsRequired > 0),
         assert(leadCatchesRequired >= 0),
+        assert(comboRequired >= 0),
         assert(chainReactionsRequired >= 0),
         assert(maxEscapes >= 0);
 }
@@ -45,6 +48,7 @@ class SkywardWorldOne {
       number: 2,
       title: 'Cloud Combos',
       popsRequired: 20,
+      comboRequired: 6,
     ),
     SkywardLevelDefinition(
       number: 3,
@@ -125,6 +129,8 @@ class SkywardLevelRun {
   int leadCatches = 0;
   int chainReactions = 0;
   int successfulTaps = 0;
+  int currentCombo = 0;
+  int bestCombo = 0;
   int missedTaps = 0;
   int escaped = 0;
 
@@ -135,6 +141,7 @@ class SkywardLevelRun {
   bool get isComplete =>
       !isFailed &&
       popped >= level.popsRequired &&
+      bestCombo >= level.comboRequired &&
       leadCatches >= level.leadCatchesRequired &&
       chainReactions >= level.chainReactionsRequired;
 
@@ -161,6 +168,8 @@ class SkywardLevelRun {
     }
     if (isFailed || isComplete) return;
     successfulTaps++;
+    currentCombo++;
+    if (currentCombo > bestCombo) bestCombo = currentCombo;
     popped += balloonsPopped;
     if (leadCaught) leadCatches++;
     if (triggeredChain) chainReactions++;
@@ -169,11 +178,13 @@ class SkywardLevelRun {
   void recordMiss() {
     if (isFailed || isComplete) return;
     missedTaps++;
+    currentCombo = 0;
   }
 
   void recordEscape() {
     if (isFailed || isComplete) return;
     escaped++;
+    currentCombo = 0;
   }
 }
 
