@@ -1470,7 +1470,8 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   ),
                 ),
-              if (kDebugMode || kEnableQaAutoTap)
+              if ((!_isSkyward || !_isRunEnded) &&
+                  (kDebugMode || kEnableQaAutoTap))
                 Positioned(
                   top: 44,
                   left: 16,
@@ -1492,7 +1493,8 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   ),
                 ),
-              if (_showHud && (kDebugMode || kEnableQaAutoTap))
+              if ((!_isSkyward || !_isRunEnded) &&
+                  _showHud && (kDebugMode || kEnableQaAutoTap))
                 Positioned(
                   top: 104,
                   left: 16,
@@ -1513,7 +1515,8 @@ class _GameScreenState extends State<GameScreen>
                     ],
                   ),
                 ),
-              Positioned(
+              if (!_isSkyward || !_isRunEnded)
+                Positioned(
                 top: 44,
                 right: 16,
                 child: Row(
