@@ -83,6 +83,11 @@ class BalloonPainter extends CustomPainter {
       final y = balloon.y;
       final center = Offset(x, y);
 
+      if (balloon.type == BalloonType.lead) {
+        _paintLeadBalloon(canvas, center, radius);
+        continue;
+      }
+
       _paintStreakGlow(canvas, center, radius);
 
       final paletteColor = _paletteForWorld(currentWorld)[paletteIndex];
@@ -137,6 +142,80 @@ class BalloonPainter extends CustomPainter {
       _paintKnot(canvas, x, y, radius, styleVariant);
       _paintString(canvas, balloon, x, y, radius, seed, styleVariant);
     }
+  }
+
+  /// High-contrast metallic target, not dependent on sound or color alone.
+  /// Red downward arrow and Pb marking identify this descending lead balloon.
+  void _paintLeadBalloon(Canvas canvas, Offset center, double radius) {
+    final outline = Paint()
+      ..color = const Color(0xFFFFCA55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..isAntiAlias = true;
+
+    final body = Paint()
+      ..isAntiAlias = true
+      ..shader = const RadialGradient(
+        center: Alignment(-0.35, -0.55),
+        radius: 1.1,
+        colors: [
+          Color(0xFFCCD6DF),
+          Color(0xFF8798A9),
+          Color(0xFF324152),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, body);
+    canvas.drawCircle(center, radius + 2, outline);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius * 0.7),
+      -0.2,
+      1.7,
+      false,
+      Paint()
+        ..color = const Color(0x66384858)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    final arrow = Path()
+      ..moveTo(center.dx - radius * 0.22, center.dy + radius * 0.20)
+      ..lineTo(center.dx + radius * 0.22, center.dy + radius * 0.20)
+      ..lineTo(center.dx, center.dy + radius * 0.58)
+      ..close();
+    canvas.drawPath(arrow, Paint()..color = const Color(0xFFFF4757));
+
+    final label = TextPainter(
+      text: const TextSpan(
+        text: 'Pb',
+        style: TextStyle(
+          color: Color(0xFF152435),
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    label.paint(
+      canvas,
+      Offset(center.dx - label.width / 2, center.dy - radius * 0.56),
+    );
+
+    // Downward streaks signal unusual movement from a distance.
+    final streak = Paint()
+      ..color = const Color(0x99FFCA55)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(center.dx - radius * 0.4, center.dy - radius * 1.8),
+      Offset(center.dx - radius * 0.4, center.dy - radius * 1.15),
+      streak,
+    );
+    canvas.drawLine(
+      Offset(center.dx + radius * 0.35, center.dy - radius * 1.55),
+      Offset(center.dx + radius * 0.35, center.dy - radius * 1.1),
+      streak,
+    );
   }
 
   void _paintStreakGlow(Canvas canvas, Offset center, double radius) {
