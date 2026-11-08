@@ -28,6 +28,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Verify Skyward World 1 unit tests
+        run: |
+          flutter pub get
+          flutter test test/skyward_world_one_test.dart
+
       - name: Install Android command-line tools
         shell: bash
         run: |
