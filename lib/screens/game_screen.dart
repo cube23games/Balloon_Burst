@@ -699,7 +699,8 @@ class _GameScreenState extends State<GameScreen>
         _balloons.addAll(pair);
         widget.gameState.log(
           'SKYWARD RIBBON SPAWN group=${pair.first.ribbonGroupId} '
-          'members=${pair.length}',
+          'members=${pair.length} '
+          'windPhase=${_levelUsesWind ? _windController.phase.name : 'off'}',
           type: DebugEventType.system,
         );
       }
@@ -754,10 +755,38 @@ class _GameScreenState extends State<GameScreen>
       );
 
       _balloons[i] = moved.withXOffset(
-        _levelUsesWind && !isLead
+        _levelUsesWind && !isLead && !isRibbon
             ? _windController.applySway(driftX)
             : driftX,
       );
+    }
+
+    // Level 6 mixed hazard: gusts move each connected ribbon group as
+    // one object, preserving the two balloons' organic independent sway.
+    // A member at the edge caps the group's shared wind displacement.
+    // This runs only for Skyward levels containing BOTH hazards; normal
+    // balloons still use the original independent wind limit above.
+    if (_levelUsesWind && _levelUsesRibbon && _windController.isGusting) {
+      final groups = <String, List<int>>{};
+      for (var i = 0; i < _balloons.length; i++) {
+        final b = _balloons[i];
+        final groupId = b.ribbonGroupId;
+        if (!b.isPopped &&
+            b.type == BalloonType.ribbon &&
+            groupId != null) {
+          groups.putIfAbsent(groupId, () => <int>[]).add(i);
+        }
+      }
+      for (final members in groups.values) {
+        final shift = _windController.boundedGroupSway(
+          members.map((index) => _balloons[index].xOffset),
+        );
+        if (shift == 0) continue;
+        for (final index in members) {
+          final b = _balloons[index];
+          _balloons[index] = b.withXOffset(b.xOffset + shift);
+        }
+      }
     }
 
     for (int i = 0; i < _particles.length; i++) {
