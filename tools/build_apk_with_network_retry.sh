@@ -3,7 +3,11 @@
 # Permanent Dart, Kotlin or signing errors fail immediately.
 set -euo pipefail
 
-if [[ $# -ne 1 || ( "$1" != public && "$1" != qa ) ]]; then
+if [[ $# -ne 1 ]]; then
+  echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa" >&2
+  exit 64
+fi
+if [[ "$1" != public && "$1" != qa ]]; then
   echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa" >&2
   exit 64
 fi
@@ -31,7 +35,7 @@ for attempt in 1 2 3; do
   # A failed compile, missing secret, or non-network configuration problem
   # should not be masked by retries.
   if ! grep -Eqi \
-      'timeout|timed out|Gateway Time-out|HTTP (429|502|503|504)|Received status code (429|502|503|504)|SocketTimeoutException|Connection reset|Could not GET|Network is unreachable|Temporary failure in name resolution|Downloading from .* failed' \
+      'timeout|timed out|Gateway Time-out|HTTP (429|502|503|504)|Received status code (429|502|503|504)|HTTP response code: (429|502|503|504)|SocketTimeoutException|Connection reset|Could not GET|Network is unreachable|Temporary failure in name resolution|Downloading from .* failed' \
       "$log"; then
     echo "::error::Non-network $mode build failure: not retrying." >&2
     exit 1
