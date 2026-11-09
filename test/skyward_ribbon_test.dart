@@ -27,8 +27,10 @@ void main() {
       expect(pair.every((b) => b.type == BalloonType.ribbon), isTrue);
       expect(pair.first.ribbonGroupId, pair.last.ribbonGroupId);
       expect(pair.first.id, isNot(pair.last.id));
-      expect(pair.first.y, 800 + RibbonChainController.entryPaddingY);
-      expect(pair.last.y, pair.first.y);
+      expect(pair.first.y, 800 + RibbonChainController.entryPaddingY - 5);
+      expect(pair.last.y, pair.first.y + 10,
+          reason: 'A loose ribbon pair should not resemble a level bar');
+      expect(pair.first.phase, isNot(pair.last.phase));
       expect(pair.last.xOffset - pair.first.xOffset, closeTo(0.34, 1e-9));
       expect(ribbon.spawnedGroups, 1);
 
@@ -38,6 +40,27 @@ void main() {
       expect(ribbon.update(dt: 0.02, hasActiveRibbon: false), isTrue);
       final second = ribbon.createPair(viewportHeight: 800);
       expect(second.first.ribbonGroupId, isNot(pair.first.ribbonGroupId));
+    });
+
+    test('two ribbon partners sway independently while keeping their tether', () {
+      final pair = RibbonChainController().createPair(viewportHeight: 800);
+      final a = pair.first.movedBy(-180);
+      final b = pair.last.movedBy(-180);
+      final leftX = a.driftedX(
+        amplitude: RibbonChainController.swayAmplitude,
+        frequency: 0.015,
+      );
+      final rightX = b.driftedX(
+        amplitude: RibbonChainController.swayAmplitude,
+        frequency: 0.015,
+      );
+      final leftSway = leftX - a.baseXOffset;
+      final rightSway = rightX - b.baseXOffset;
+      expect((leftSway - rightSway).abs(), greaterThan(0.005),
+          reason: 'Partners should float individually, not in lockstep');
+      expect((rightX - leftX).abs(), lessThan(0.65),
+          reason: 'Pair should remain visually connected, not fly apart');
+      expect(RibbonChainController.sharedRiseSpeedMultiplier, 1.0);
     });
 
     test('immutable positions and pop preserve ribbon group identity', () {
