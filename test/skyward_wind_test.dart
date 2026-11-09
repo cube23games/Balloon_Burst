@@ -53,11 +53,12 @@ void main() {
     wind.update(MicroburstController.warningSeconds +
         MicroburstController.gustSeconds / 2);
 
-    expect(wind.applySway(0), closeTo(0.18, 1e-9));
+    expect(MicroburstController.maxSway, 0.34);
+    expect(wind.applySway(0), closeTo(0.34, 1e-9));
     expect(wind.applySway(0.85), closeTo(0.88, 1e-9));
     expect(wind.applySway(0.95), 0.95,
         reason: 'Do not force a naturally edge-spawned balloon farther out');
-    expect(wind.applySway(-0.5), closeTo(-0.32, 1e-9));
+    expect(wind.applySway(-0.5), closeTo(-0.16, 1e-9));
   });
 
   test('reset clears wind phase, direction, and gust count', () {
