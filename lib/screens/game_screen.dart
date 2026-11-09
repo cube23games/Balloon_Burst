@@ -784,7 +784,13 @@ class _GameScreenState extends State<GameScreen>
         margin: balloonRadius,
       )) {
         if (!b.isPopped) {
-          escapedThisTick++;
+          // A connected ribbon PAIR is one missed opportunity, even when
+          // the two members cross the exit on adjacent frames.
+          if (_levelUsesRibbon && b.type == BalloonType.ribbon) {
+            if (_ribbonController.shouldCountEscape(b)) escapedThisTick++;
+          } else {
+            escapedThisTick++;
+          }
           if (b.type == BalloonType.lead) {
             widget.gameState.log(
               'SKYWARD LEAD ESCAPED id=${b.id}',
