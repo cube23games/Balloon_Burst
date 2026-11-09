@@ -8,6 +8,10 @@ class RibbonChainController {
   static const double firstDelaySeconds = 4.0;
   static const double repeatDelaySeconds = 5.5;
   static const double entryPaddingY = 60.0;
+  // Skyward only: enough independent horizontal movement to look like two
+  // buoyant balloons, while the tether remains short and readable.
+  static const double swayAmplitude = 0.085;
+  static const double sharedRiseSpeedMultiplier = 1.0;
 
   double _remaining = firstDelaySeconds;
   int _sequence = 0;
