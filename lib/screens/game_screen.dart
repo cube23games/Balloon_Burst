@@ -222,6 +222,8 @@ class _GameScreenState extends State<GameScreen>
       'cluster=${widget.spawner.lastSpawnBatch} '
       'runSec=${widget.spawner.engineElapsedSeconds.toStringAsFixed(1)} '
       'audio=${AudioPlayerService.muted ? 'muted' : 'on'} '
+      'wind=${_levelUsesWind ? _windController.phase.name : 'off'} '
+      'windSway=${_levelUsesWind ? _windController.normalizedSway.toStringAsFixed(3) : '0'} '
       'lagForgive=$_lagForgivenessTicks',
       type: DebugEventType.perf,
     );
