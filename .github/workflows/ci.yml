@@ -34,7 +34,7 @@ jobs:
       - name: Verify Skyward World 1 unit tests
         run: |
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
