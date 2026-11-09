@@ -10,6 +10,7 @@ import 'package:balloon_burst/skyward/world_one.dart';
 
 class AppRoot extends StatefulWidget {
   final TJEngine engine;
+  final VoidCallback onMainMenu;
   final SkywardLevelRun? skywardRun;
   final ValueChanged<SkywardLevelRun>? onSkywardCompleted;
   final VoidCallback? onSkywardExit;
@@ -18,6 +19,7 @@ class AppRoot extends StatefulWidget {
   const AppRoot({
     super.key,
     required this.engine,
+    required this.onMainMenu,
     this.skywardRun,
     this.onSkywardCompleted,
     this.onSkywardExit,
@@ -56,6 +58,7 @@ class _AppRootState extends State<AppRoot> {
           spawner: _spawner,
           engine: widget.engine,
           onRequestDebug: _openDebug,
+          onMainMenu: widget.onMainMenu,
           skywardRun: widget.skywardRun,
           onSkywardCompleted: widget.onSkywardCompleted,
           onSkywardExit: widget.onSkywardExit,
