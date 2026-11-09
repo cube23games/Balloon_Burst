@@ -13,8 +13,8 @@ Endless Arcade has **no wind controller** and no changed spawn/speed curves.
   Repeat warning/gust/recovery with **alternating** left/right direction.
 - Main HUD displays `→ CROSSWIND INCOMING` or `← CROSSWIND INCOMING`;
   during wind, it displays `→ GUST! KEEP YOUR AIM` or its reverse.
-- Normal balloons receive a bell-curve horizontal sway up to 0.18
-  normalized x offset (~36px on 400px device), peaking halfway through
+- Normal balloons receive a bell-curve horizontal sway up to 0.34
+  normalized x offset (~68px on 400px device), peaking halfway through
   each gust and returning smoothly to their natural x position.
 - Never push an outer-edge balloon farther outward than its current
   natural position. The same `Balloon.xOffset` is used for drawing and
@@ -53,3 +53,16 @@ Existing Skyward/lead/Endless-menu tests run in CI.
 Built on TJ-44C1 menu and TJ-44S stable signing branches, isolated from
 `main` until green CI and human device QA. No main merge or public
 production release in this milestone.
+
+## Post-QA tuning (TJ-44D2)
+
+The November 8 on-device report confirmed alternating, warned gusts but
+described the 0.18 normalized movement as barely perceptible. Peak sway
+increases to 0.34 (~68px at 400px screen width), with the existing easing,
+safe-edge bound, advance warning, and no wind on descending lead balloons
+or Endless Arcade. No additional particles/render passes were added.
+
+Hitch logs now include wind phase and normalized sway at the time of the
+frame gap. Initial QA baseline: Skyward L4 11 hitches / 44.5 active seconds;
+Endless 10 hitches / 74.2 active seconds. Distinct runs; this comparison
+does not establish wind as the cause. Re-test with the new signed QA APK.
