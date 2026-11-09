@@ -30,17 +30,21 @@ class RibbonChainController {
     if (!viewportHeight.isFinite || viewportHeight <= 0) {
       throw ArgumentError.value(viewportHeight, 'viewportHeight');
     }
-    // Each pair enters as a readable, horizontally connected duo.
-    // Both members share phase and y so their sway stays in sync.
+    // Each pair enters as a recognizable duo with a loose fabric tether.
+    // Give the two balloons separate sway phases and a slight vertical
+    // stagger: the old shared phase/y made the pair move like a rigid bar.
+    // The gameplay loop gives both the same upward speed, so the ribbon
+    // cannot stretch indefinitely as the pair rises.
     const centers = <double>[-0.24, 0.22, 0.0, -0.10, 0.14];
     const spacing = 0.17; // normalized half-width of the connector
     final groupIndex = _sequence++;
     final center = centers[groupIndex % centers.length];
     final groupId = 'skyward_ribbon_$groupIndex';
-    final phase = (groupIndex % 7) * 0.72;
-    final y = viewportHeight + entryPaddingY;
+    final basePhase = (groupIndex % 7) * 0.72;
     return List<Balloon>.generate(2, (slot) {
       final x = center + (slot == 0 ? -spacing : spacing);
+      final y = viewportHeight + entryPaddingY + (slot == 0 ? -5.0 : 5.0);
+      final phase = basePhase + (slot == 0 ? 0.0 : 1.45);
       return Balloon(
         id: '${groupId}_$slot',
         y: y,
