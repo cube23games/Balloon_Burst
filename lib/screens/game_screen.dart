@@ -1009,6 +1009,54 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  int _popLinkedRibbonPeers(Balloon? tapped) {
+    if (!_levelUsesRibbon || tapped == null) return 0;
+    final peers = RibbonChainController.linkedPeers(
+      tapped: tapped,
+      balloons: _balloons,
+    );
+    if (peers.isEmpty) return 0;
+
+    var extraPops = 0;
+    for (final peer in peers) {
+      final index = _balloons.indexWhere(
+        (balloon) => balloon.id == peer.id && !balloon.isPopped,
+      );
+      if (index < 0) continue;
+      _balloons[index] = _balloons[index].pop();
+
+      // Each physically popped balloon is worth one pop in the spawner,
+      // TJ run lifecycle and level objective. Only the player's initial
+      // contact counts as a tap, so accuracy/streak is not artificially
+      // multiplied by the chain's automatic secondary pops.
+      widget.spawner.registerPop(widget.gameState);
+      widget.engine.runLifecycle.report(PopEvent(points: 1));
+      extraPops++;
+
+      final x = _lastSize.width * (0.5 + peer.xOffset * 0.5);
+      widget.engine.juice.spawnScoreBurst(
+        x: x,
+        y: peer.y,
+        value: 1,
+        isPerfect: false,
+      );
+      // Keep auxiliary effects lightweight on lower-end Android devices.
+      _particles.addAll(PopParticle.burst(x, peer.y).take(5));
+      _shockwaves.add(
+        PopShockwave(x: x, y: peer.y, age: 0, life: 0.28),
+      );
+    }
+
+    if (extraPops > 0) {
+      widget.gameState.log(
+        'SKYWARD RIBBON CHAIN group=${tapped.ribbonGroupId} '
+        'pops=${1 + extraPops} extra=$extraPops',
+        type: DebugEventType.system,
+      );
+    }
+    return extraPops;
+  }
+
   void _handleTap(TapDownDetails details) {
     if (_showIntro) return;
     if (_isGameplayFrozenByLifecycle) return;
@@ -1144,6 +1192,7 @@ class _GameScreenState extends State<GameScreen>
       );
     }
     widget.engine.runLifecycle.report(PopEvent(points: earnedPoints));
+    final chainExtraPops = _popLinkedRibbonPeers(poppedBalloon);
 
     final shouldPlayPopSound =
         !_skipPopAudioDuringLagForgiveness || _lagForgivenessTicks == 0;
@@ -1218,11 +1267,15 @@ class _GameScreenState extends State<GameScreen>
       AudioPlayerService.playStreakMilestone(nextMilestone);
     }
 
-    // Count only confirmed hits after the existing TapHandler completes.
-    // TJ-44B supports the original single-pop balloon types. Chain scoring
-    // will extend this event bridge in TJ-44E.
+    // A linked pair counts two physical pops and one actual player tap.
+    // Ribbon objectives require at least one SECONDARY pop in the same
+    // group, preventing an isolated ribbon or normal tap from earning a chain.
     if (_skywardRun != null && widget.spawner.totalPops > popsBefore) {
-      _skywardRun!.recordPop(leadCaught: leadCaught);
+      _skywardRun!.recordPop(
+        balloonsPopped: 1 + chainExtraPops,
+        leadCaught: leadCaught,
+        triggeredChain: chainExtraPops > 0,
+      );
       if (_skywardRun!.isComplete) {
         widget.engine.runLifecycle.endRun(EndReason.victory);
         _syncQaRunEvidence();
