@@ -65,6 +65,10 @@ class BalloonPainter extends CustomPainter {
 
     final centerX = size.width / 2;
 
+    // Render linked ribbons behind the balloons themselves. The same
+    // xOffset/y coordinates are used for paint and hit-testing.
+    _paintRibbonLinks(canvas, size);
+
     for (final balloon in balloons) {
       if (balloon.isPopped) continue;
 
@@ -85,6 +89,10 @@ class BalloonPainter extends CustomPainter {
 
       if (balloon.type == BalloonType.lead) {
         _paintLeadBalloon(canvas, center, radius);
+        continue;
+      }
+      if (balloon.type == BalloonType.ribbon) {
+        _paintRibbonBalloon(canvas, center, radius);
         continue;
       }
 
@@ -146,6 +154,86 @@ class BalloonPainter extends CustomPainter {
 
   /// High-contrast metallic target, not dependent on sound or color alone.
   /// Red downward arrow and Pb marking identify this descending lead balloon.
+  void _paintRibbonLinks(Canvas canvas, Size size) {
+    final firstByGroup = <String, Balloon>{};
+    final glowPaint = Paint()
+      ..color = const Color(0x8856F8FF)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+    final ribbonPaint = Paint()
+      ..color = const Color(0xFFFFE07A)
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round;
+
+    for (final balloon in balloons) {
+      if (balloon.isPopped || balloon.type != BalloonType.ribbon) continue;
+      final group = balloon.ribbonGroupId;
+      if (group == null) continue;
+      final first = firstByGroup[group];
+      if (first == null) {
+        firstByGroup[group] = balloon;
+        continue;
+      }
+      final a = Offset(
+        size.width * (0.5 + first.xOffset * 0.5),
+        first.y,
+      );
+      final b = Offset(
+        size.width * (0.5 + balloon.xOffset * 0.5),
+        balloon.y,
+      );
+      canvas.drawLine(a, b, glowPaint);
+      canvas.drawLine(a, b, ribbonPaint);
+    }
+  }
+
+  void _paintRibbonBalloon(Canvas canvas, Offset center, double radius) {
+    final circle = Rect.fromCircle(center: center, radius: radius);
+    final fill = Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(-0.38, -0.38),
+        radius: 1.15,
+        colors: <Color>[
+          Color(0xFFAEFFFF),
+          Color(0xFF1CCAD8),
+          Color(0xFF066198),
+        ],
+      ).createShader(circle);
+    canvas.drawCircle(center, radius, fill);
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = const Color(0xFFFFE79A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2,
+    );
+
+    // A glowing, diagonal fabric stripe makes the chain balloon visually
+    // distinct even when the connector is behind another balloon.
+    final stripe = Path()
+      ..moveTo(center.dx - radius * 0.49, center.dy - radius * 0.78)
+      ..quadraticBezierTo(
+        center.dx + radius * 0.06,
+        center.dy,
+        center.dx + radius * 0.49,
+        center.dy + radius * 0.78,
+      );
+    canvas.drawPath(
+      stripe,
+      Paint()
+        ..color = const Color(0xFFFFF0AD)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.0
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(
+      Offset(center.dx - radius * 0.36, center.dy - radius * 0.36),
+      radius * 0.16,
+      Paint()..color = Colors.white.withOpacity(0.82),
+    );
+  }
+
   void _paintLeadBalloon(Canvas canvas, Offset center, double radius) {
     final outline = Paint()
       ..color = const Color(0xFFFFCA55)
