@@ -9,6 +9,7 @@ import 'run_end_state.dart';
 class RunEndOverlay extends StatefulWidget {
   final RunEndState state;
   final VoidCallback onReplay;
+  final VoidCallback onMainMenu;
   final VoidCallback? onRevive;
   final int? placement;
   final VoidCallback? onViewLeaderboard;
@@ -18,6 +19,7 @@ class RunEndOverlay extends StatefulWidget {
     super.key,
     required this.state,
     required this.onReplay,
+    required this.onMainMenu,
     this.onRevive,
     this.placement,
     this.onViewLeaderboard,
@@ -684,6 +686,19 @@ class _RunEndOverlayState extends State<RunEndOverlay>
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('endless-main-menu'),
+              onPressed: widget.onMainMenu,
+              icon: const Icon(Icons.home_rounded),
+              label: const Text(
+                'MAIN MENU',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
           const SizedBox(height: 10),
           ScaleTransition(
             scale: _shieldScale,
