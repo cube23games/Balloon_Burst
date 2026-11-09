@@ -78,6 +78,30 @@ class MicroburstController {
     return (naturalX + normalizedSway).clamp(minX, maxX).toDouble();
   }
 
+  /// Shared horizontal wind offset for a linked group of balloons.
+  ///
+  /// Both balloons shift the same distance, preventing a gust from
+  /// stretching their ribbon if one reaches the safe screen margin first.
+  /// Each balloon keeps its independently calculated natural sway.
+  /// The group's most restricted living member determines the cap.
+  double boundedGroupSway(Iterable<double> naturalXs) {
+    if (!isGusting) return 0.0;
+    var shift = normalizedSway;
+    var hasMember = false;
+    for (final naturalX in naturalXs) {
+      if (!naturalX.isFinite) return 0.0;
+      hasMember = true;
+      final minX = math.min(-safeEdgeX, naturalX);
+      final maxX = math.max(safeEdgeX, naturalX);
+      if (shift > 0) {
+        shift = math.min(shift, math.max(0.0, maxX - naturalX));
+      } else if (shift < 0) {
+        shift = math.max(shift, math.min(0.0, minX - naturalX));
+      }
+    }
+    return hasMember ? shift : 0.0;
+  }
+
   void reset() {
     _phase = MicroburstPhase.calm;
     _remaining = firstCalmSeconds;
