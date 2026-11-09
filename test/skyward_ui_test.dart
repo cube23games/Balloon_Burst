@@ -27,11 +27,19 @@ void main() {
 
     expect(find.text('WORLD 1 · OPEN SKIES'), findsOneWidget);
     expect(find.text('First Flight'), findsOneWidget);
-    expect(find.text('In development'), findsWidgets);
     await tester.tap(find.text('First Flight'));
     expect(chosen, [1]);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [1], reason: 'Level 2 is still locked');
+    // Level 5 is off-screen now that Level 4 is playable; scroll first.
+    await tester.scrollUntilVisible(
+      find.text('Ribbon Reaction'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('In development'), findsWidgets);
+    await tester.tap(find.text('Ribbon Reaction'));
+    expect(chosen, [1], reason: 'Unimplemented chain level is gated');
   });
 
   testWidgets('Completing level 1 unlocks level 2', (tester) async {
