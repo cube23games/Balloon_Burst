@@ -38,6 +38,7 @@ class GameScreen extends StatefulWidget {
   final BalloonSpawner spawner;
   final TJEngine engine;
   final VoidCallback onRequestDebug;
+  final VoidCallback onMainMenu;
   final SkywardLevelRun? skywardRun;
   final ValueChanged<SkywardLevelRun>? onSkywardCompleted;
   final VoidCallback? onSkywardExit;
@@ -49,6 +50,7 @@ class GameScreen extends StatefulWidget {
     required this.spawner,
     required this.engine,
     required this.onRequestDebug,
+    required this.onMainMenu,
     this.skywardRun,
     this.onSkywardCompleted,
     this.onSkywardExit,
@@ -1186,6 +1188,14 @@ class _GameScreenState extends State<GameScreen>
     widget.onSkywardExit?.call();
   }
 
+  void _returnToMainMenu() {
+    // Endless results have already finalized their reward and leaderboard.
+    // Leaving must not end or credit the same run a second time.
+    if (_isSkyward || !_isRunEnded) return;
+    _ticker.stop();
+    widget.onMainMenu();
+  }
+
   void _handleLongPress() {
     if (!kDebugMode && !kEnableQaAutoTap) return;
     if (_showIntro) return;
@@ -1498,6 +1508,7 @@ class _GameScreenState extends State<GameScreen>
                 RunEndOverlay(
                   state: RunEndState.fromSummary(summary),
                   onReplay: _replay,
+                  onMainMenu: _returnToMainMenu,
                   onRevive: summary.endReason == EndReason.victory ? null : _revive,
                   placement: _leaderboardPlacement,
                   onViewLeaderboard: () {
