@@ -43,8 +43,10 @@ class MicroburstController {
     if (!dt.isFinite || dt <= 0) return false;
     _remaining -= dt;
     var changed = false;
-    while (_remaining <= 0) {
-      final overflow = -_remaining;
+    // Floating-point increments such as 3.9 + 0.1 can miss an exact
+    // boundary by a fraction of a nanosecond. Treat that as elapsed.
+    while (_remaining <= 1e-9) {
+      final overflow = math.max(0.0, -_remaining);
       switch (_phase) {
         case MicroburstPhase.calm:
           _phase = MicroburstPhase.warning;
