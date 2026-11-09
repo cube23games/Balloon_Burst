@@ -242,49 +242,97 @@ class BalloonPainter extends CustomPainter {
   }
 
   void _paintRibbonBalloon(Canvas canvas, Offset center, double radius) {
-    final circle = Rect.fromCircle(center: center, radius: radius);
-    final fill = Paint()
-      ..shader = const RadialGradient(
-        center: Alignment(-0.38, -0.38),
-        radius: 1.15,
-        colors: <Color>[
-          Color(0xFFAEFFFF),
-          Color(0xFF1CCAD8),
-          Color(0xFF066198),
-        ],
-      ).createShader(circle);
-    canvas.drawCircle(center, radius, fill);
-    canvas.drawCircle(
-      center,
-      radius,
+    // A slightly tapered balloon silhouette + knot, not a circular disc.
+    // Keep roughly the original visual/hit radius to preserve tap fairness.
+    final x = center.dx;
+    final y = center.dy;
+    final body = Path()
+      ..moveTo(x, y - radius * 1.04)
+      ..cubicTo(
+        x + radius * 0.96, y - radius * 1.13,
+        x + radius * 1.11, y - radius * 0.15,
+        x + radius * 0.78, y + radius * 0.56,
+      )
+      ..quadraticBezierTo(
+        x + radius * 0.42, y + radius * 1.01,
+        x, y + radius * 1.04,
+      )
+      ..quadraticBezierTo(
+        x - radius * 0.42, y + radius * 1.01,
+        x - radius * 0.78, y + radius * 0.56,
+      )
+      ..cubicTo(
+        x - radius * 1.11, y - radius * 0.15,
+        x - radius * 0.96, y - radius * 1.13,
+        x, y - radius * 1.04,
+      )
+      ..close();
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.38, -0.38),
+          radius: 1.15,
+          colors: <Color>[
+            Color(0xFFAEFFFF),
+            Color(0xFF1CCAD8),
+            Color(0xFF066198),
+          ],
+        ).createShader(body.getBounds())
+        ..isAntiAlias = true,
+    );
+    canvas.drawPath(
+      body,
       Paint()
         ..color = const Color(0xFFFFE79A)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2,
+        ..strokeWidth = 2.2
+        ..isAntiAlias = true,
     );
 
-    // A glowing, diagonal fabric stripe makes the chain balloon visually
-    // distinct even when the connector is behind another balloon.
+    // Fabric marker remains visible even when a normal balloon overlaps.
     final stripe = Path()
-      ..moveTo(center.dx - radius * 0.49, center.dy - radius * 0.78)
+      ..moveTo(x - radius * 0.47, y - radius * 0.71)
       ..quadraticBezierTo(
-        center.dx + radius * 0.06,
-        center.dy,
-        center.dx + radius * 0.49,
-        center.dy + radius * 0.78,
+        x + radius * 0.03,
+        y,
+        x + radius * 0.43,
+        y + radius * 0.70,
       );
     canvas.drawPath(
       stripe,
       Paint()
         ..color = const Color(0xFFFFF0AD)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 3.7
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true,
     );
     canvas.drawCircle(
-      Offset(center.dx - radius * 0.36, center.dy - radius * 0.36),
+      Offset(x - radius * 0.36, y - radius * 0.38),
       radius * 0.16,
       Paint()..color = Colors.white.withOpacity(0.82),
+    );
+
+    final knot = Path()
+      ..moveTo(x - radius * 0.16, y + radius * 0.99)
+      ..lineTo(x + radius * 0.16, y + radius * 0.99)
+      ..lineTo(x, y + radius * 1.24)
+      ..close();
+    canvas.drawPath(knot, Paint()..color = const Color(0xFFFFD778));
+    final string = Path()
+      ..moveTo(x, y + radius * 1.23)
+      ..quadraticBezierTo(
+        x + radius * 0.22, y + radius * 1.59,
+        x - radius * 0.04, y + radius * 1.88,
+      );
+    canvas.drawPath(
+      string,
+      Paint()
+        ..color = const Color(0xAAE9F3FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..isAntiAlias = true,
     );
   }
 
