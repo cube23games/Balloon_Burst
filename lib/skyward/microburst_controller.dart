@@ -14,8 +14,8 @@ class MicroburstController {
   static const double recoverySeconds = 7.0;
 
   /// Normalized offset: xOffset * (screenWidth / 2).
-  /// 0.18 -> 36px on a 400px-wide phone at the strongest part of the gust.
-  static const double maxSway = 0.18;
+  /// 0.34 -> 68px on a 400px-wide phone at the gust midpoint.
+  static const double maxSway = 0.34;
   static const double safeEdgeX = 0.88;
 
   MicroburstPhase _phase = MicroburstPhase.calm;
