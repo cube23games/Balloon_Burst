@@ -11,6 +11,7 @@ class RibbonChainController {
 
   double _remaining = firstDelaySeconds;
   int _sequence = 0;
+  final Set<String> _escapedGroups = <String>{};
 
   double get secondsUntilNext => _remaining;
   int get spawnedGroups => _sequence;
@@ -74,8 +75,19 @@ class RibbonChainController {
         .toList(growable: false);
   }
 
+  /// A linked pair reaching the exit is one missed opportunity, not two
+  /// simultaneous escape penalties. Retain group IDs for the whole attempt
+  /// in case partners cross the exit on adjacent frames.
+  bool shouldCountEscape(Balloon balloon) {
+    if (balloon.type != BalloonType.ribbon || balloon.ribbonGroupId == null) {
+      return true;
+    }
+    return _escapedGroups.add(balloon.ribbonGroupId!);
+  }
+
   void reset() {
     _remaining = firstDelaySeconds;
     _sequence = 0;
+    _escapedGroups.clear();
   }
 }
