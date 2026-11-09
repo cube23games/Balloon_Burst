@@ -62,6 +62,10 @@ class _BalloonBurstAppState extends State<BalloonBurstApp> {
     await preferences.setStringList(_skywardStarsKey, saved);
   }
 
+  void _returnToMainMenu() {
+    setState(() => _view = AppView.start);
+  }
+
   void _startGame() {
     setState(() => _view = AppView.game);
   }
@@ -111,6 +115,7 @@ class _BalloonBurstAppState extends State<BalloonBurstApp> {
         AppView.game => AppRoot(
             key: const ValueKey('classic-arcade'),
             engine: _engine,
+            onMainMenu: _returnToMainMenu,
           ),
         AppView.skywardSelect => SkywardSelectScreen(
             progress: _skywardProgress,
@@ -120,6 +125,7 @@ class _BalloonBurstAppState extends State<BalloonBurstApp> {
         AppView.skywardGame => AppRoot(
             key: ValueKey('skyward-$_selectedSkywardLevel'),
             engine: _engine,
+            onMainMenu: _returnToMainMenu,
             skywardRun: SkywardLevelRun(
               SkywardWorldOne.level(_selectedSkywardLevel),
             ),
