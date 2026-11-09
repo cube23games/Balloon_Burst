@@ -31,15 +31,15 @@ void main() {
     expect(chosen, [1]);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [1], reason: 'Level 2 is still locked');
-    // Level 6 is still in development; scroll first.
+    // Level 7 is still in development; scroll first.
     await tester.scrollUntilVisible(
-      find.text('Spiraling Skies'),
+      find.text('Leadstorm'),
       240,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('In development'), findsWidgets);
-    await tester.tap(find.text('Spiraling Skies'));
-    expect(chosen, [1], reason: 'Unimplemented composite level is gated');
+    await tester.tap(find.text('Leadstorm'));
+    expect(chosen, [1], reason: 'Unimplemented leadstorm is gated');
   });
 
   testWidgets('Completing level 1 unlocks level 2', (tester) async {
@@ -57,8 +57,8 @@ void main() {
     expect(find.text('★★★'), findsOneWidget);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [2]);
-    // Ribbon Reaction is playable; composed levels remain gated.
-    expect(SkywardSelectScreen.playableThrough, 5);
+    // Spiraling Skies is playable; Level 7 and beyond remain gated.
+    expect(SkywardSelectScreen.playableThrough, 6);
   });
 
   testWidgets('Result overlay exposes Next, Replay and Map actions', (tester) async {
