@@ -14,7 +14,7 @@ class SkywardSelectScreen extends StatelessWidget {
     required this.onBack,
   });
 
-  static const int playableThrough = 3;
+  static const int playableThrough = 4;
 
   @override
   Widget build(BuildContext context) {
