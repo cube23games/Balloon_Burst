@@ -14,7 +14,7 @@ class SkywardSelectScreen extends StatelessWidget {
     required this.onBack,
   });
 
-  static const int playableThrough = 4;
+  static const int playableThrough = 5;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +50,8 @@ class SkywardSelectScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Finish challenges to unlock the next. Lead balloons and '
-              'wind are playable; ribbon chains are coming next.',
+              'Lead balloons, crosswinds and linked ribbons are now playable. '
+              'Clear each challenge to unlock the next.',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 20),
