@@ -33,6 +33,7 @@ jobs:
 
       - name: Verify Skyward World 1 unit tests
         run: |
+          bash -n tools/build_apk_with_network_retry.sh
           flutter pub get
           flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart
 
@@ -115,7 +116,7 @@ jobs:
         run: |
           flutter clean
           flutter pub get
-          flutter build apk --release --build-number="$GITHUB_RUN_NUMBER"
+          bash tools/build_apk_with_network_retry.sh public
           cp \
             build/app/outputs/flutter-apk/app-release.apk \
             artifacts/balloon-burst-public-release.apk
@@ -129,10 +130,7 @@ jobs:
         run: |
           flutter clean
           flutter pub get
-          flutter build apk \
-            --release \
-            --build-number="$GITHUB_RUN_NUMBER" \
-            --dart-define=ENABLE_QA_AUTOTAP=true
+          bash tools/build_apk_with_network_retry.sh qa
           cp \
             build/app/outputs/flutter-apk/app-release.apk \
             artifacts/balloon-burst-internal-qa.apk
