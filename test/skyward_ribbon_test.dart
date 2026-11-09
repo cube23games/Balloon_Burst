@@ -1,3 +1,5 @@
+import 'package:balloon_burst/game/balloon_painter.dart';
+import 'package:balloon_burst/game/game_state.dart';
 import 'package:balloon_burst/game/balloon_type.dart';
 import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/skyward/ribbon_chain_controller.dart';
@@ -142,6 +144,26 @@ void main() {
       expect(progress.isLevelUnlocked(5), isTrue);
       expect(progress.isLevelUnlocked(6), isFalse);
     });
+  });
+
+  testWidgets('ribbon painter renders the flexible link on a real canvas',
+      (tester) async {
+    final pair = RibbonChainController().createPair(viewportHeight: 700);
+    final frame = pair.map((b) => b.movedBy(-300)).toList();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 400,
+            height: 700,
+            child: CustomPaint(
+              painter: BalloonPainter(frame, GameState(), 1, streak: 0),
+            ),
+          ),
+        ),
+      ),
+    ));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Skyward objective HUD reports required chains', (tester) async {
