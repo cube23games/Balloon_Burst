@@ -32,6 +32,7 @@ import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
 import 'package:balloon_burst/skyward/world_one.dart';
 import 'package:balloon_burst/skyward/skyward_play_ui.dart';
 import 'package:balloon_burst/skyward/lead_balloon_controller.dart';
+import 'package:balloon_burst/skyward/microburst_controller.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState gameState;
@@ -68,6 +69,10 @@ class _GameScreenState extends State<GameScreen>
   late final WorldSurgePulse _surge;
   SkywardLevelRun? _skywardRun;
   late final LeadBalloonController _leadController;
+  late final MicroburstController _windController;
+
+  bool get _levelUsesWind =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.microburst) ?? false;
 
   bool get _levelUsesLead =>
       _skywardRun?.level.hazards.contains(SkywardHazard.leadBalloon) ?? false;
@@ -258,6 +263,7 @@ class _GameScreenState extends State<GameScreen>
     super.initState();
     _skywardRun = widget.skywardRun;
     _leadController = LeadBalloonController();
+    _windController = MicroburstController();
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
@@ -657,6 +663,21 @@ class _GameScreenState extends State<GameScreen>
       }
     }
 
+    // Skyward-only wind is scheduled after the intro, never during Endless.
+    // The same normalized offset drives rendering and hit testing, because
+    // the moved Balloon model stores its actual tappable xOffset.
+    if (_levelUsesWind && !_showIntro && _lastSize.width > 0) {
+      if (_windController.update(dt)) {
+        final phase = _windController.phase.name;
+        final direction = _windController.direction > 0 ? 'right' : 'left';
+        widget.gameState.log(
+          'SKYWARD WIND phase=$phase direction=$direction '
+          'gusts=${_windController.gustCount}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
     final currentWorld = widget.spawner.currentWorld;
     if (currentWorld != _lastReportedWorld) {
       _lastReportedWorld = currentWorld;
@@ -698,7 +719,11 @@ class _GameScreenState extends State<GameScreen>
         frequency: 0.015,
       );
 
-      _balloons[i] = moved.withXOffset(driftX);
+      _balloons[i] = moved.withXOffset(
+        _levelUsesWind && !isLead
+            ? _windController.applySway(driftX)
+            : driftX,
+      );
     }
 
     for (int i = 0; i < _particles.length; i++) {
@@ -1205,6 +1230,7 @@ class _GameScreenState extends State<GameScreen>
 
   void _replay() {
     _leadController.reset();
+    _windController.reset();
     if (_skywardRun != null) {
       _skywardRun = SkywardLevelRun(_skywardRun!.level);
     }
@@ -1485,6 +1511,9 @@ class _GameScreenState extends State<GameScreen>
                 SkywardObjectiveHud(
                   run: _skywardRun!,
                   leadWarning: _levelUsesLead && _leadController.warningSoon,
+                  windWarning: _levelUsesWind && _windController.warningSoon,
+                  windGusting: _levelUsesWind && _windController.isGusting,
+                  windDirection: _windController.direction,
                   onExit: _exitSkyward,
                 ),
               if (_showIntro)
