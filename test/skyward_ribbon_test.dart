@@ -17,7 +17,7 @@ void main() {
       expect(balloonTypeConfig[BalloonType.standard]!.spawnWeight, greaterThan(0));
       expect(SkywardWorldOne.level(4).hazards, isNot(contains(SkywardHazard.ribbonChain)));
       expect(SkywardWorldOne.level(5).hazards, contains(SkywardHazard.ribbonChain));
-      expect(SkywardSelectScreen.playableThrough, 5);
+      expect(SkywardSelectScreen.playableThrough, 6);
     });
 
     test('one connected pair enters after active gameplay and blocks respawn', () {
@@ -139,10 +139,14 @@ void main() {
       expect(run.stars, 3);
     });
 
-    test('completed Level 4 unlocks Level 5; Level 6 remains gated', () {
-      final progress = SkywardWorldOneProgress.fromSaved([3, 3, 3, 3]);
-      expect(progress.isLevelUnlocked(5), isTrue);
-      expect(progress.isLevelUnlocked(6), isFalse);
+    test('Level 5 must be completed before Level 6; Level 7 stays gated', () {
+      final afterFour = SkywardWorldOneProgress.fromSaved([3, 3, 3, 3]);
+      expect(afterFour.isLevelUnlocked(5), isTrue);
+      expect(afterFour.isLevelUnlocked(6), isFalse);
+
+      final afterFive = SkywardWorldOneProgress.fromSaved([3, 3, 3, 3, 3]);
+      expect(afterFive.isLevelUnlocked(6), isTrue);
+      expect(afterFive.isLevelUnlocked(7), isFalse);
     });
   });
 
