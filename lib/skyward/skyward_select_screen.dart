@@ -50,8 +50,8 @@ class SkywardSelectScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Finish a challenge to unlock the next. Lead balloons, '
-              'wind and chains are being built next.',
+              'Finish challenges to unlock the next. Lead balloons and '
+              'wind are playable; ribbon chains are coming next.',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 20),
