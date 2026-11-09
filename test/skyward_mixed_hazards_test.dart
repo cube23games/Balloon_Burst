@@ -50,7 +50,8 @@ void main() {
       final groupShift = wind.boundedGroupSway(xs);
       expect(groupShift, closeTo(0.10, 1e-9));
       final shifted = xs.map((x) => x + groupShift).toList();
-      expect(shifted, orderedEquals([closeTo(0.48, 1e-9), closeTo(0.88, 1e-9)]));
+      expect(shifted[0], closeTo(0.48, 1e-9));
+      expect(shifted[1], closeTo(0.88, 1e-9));
       expect(shifted[1] - shifted[0], closeTo(xs[1] - xs[0], 1e-9),
           reason: 'Wind cannot stretch the silk tether');
       expect(wind.applySway(0.38), closeTo(0.72, 1e-9),
