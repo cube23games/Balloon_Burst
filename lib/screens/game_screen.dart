@@ -33,6 +33,7 @@ import 'package:balloon_burst/skyward/world_one.dart';
 import 'package:balloon_burst/skyward/skyward_play_ui.dart';
 import 'package:balloon_burst/skyward/lead_balloon_controller.dart';
 import 'package:balloon_burst/skyward/microburst_controller.dart';
+import 'package:balloon_burst/skyward/ribbon_chain_controller.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState gameState;
@@ -70,9 +71,13 @@ class _GameScreenState extends State<GameScreen>
   SkywardLevelRun? _skywardRun;
   late final LeadBalloonController _leadController;
   late final MicroburstController _windController;
+  late final RibbonChainController _ribbonController;
 
   bool get _levelUsesWind =>
       _skywardRun?.level.hazards.contains(SkywardHazard.microburst) ?? false;
+
+  bool get _levelUsesRibbon =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.ribbonChain) ?? false;
 
   bool get _levelUsesLead =>
       _skywardRun?.level.hazards.contains(SkywardHazard.leadBalloon) ?? false;
@@ -266,6 +271,7 @@ class _GameScreenState extends State<GameScreen>
     _skywardRun = widget.skywardRun;
     _leadController = LeadBalloonController();
     _windController = MicroburstController();
+    _ribbonController = RibbonChainController();
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
@@ -675,6 +681,25 @@ class _GameScreenState extends State<GameScreen>
         widget.gameState.log(
           'SKYWARD WIND phase=$phase direction=$direction '
           'gusts=${_windController.gustCount}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
+    // Skyward ribbon groups use a separate deterministic spawn schedule.
+    // They are never added to Endless Arcade's random balloon pool.
+    if (_levelUsesRibbon && !_showIntro && _lastSize.height > 0) {
+      final hasRibbon = _balloons.any(
+        (balloon) => balloon.type == BalloonType.ribbon && !balloon.isPopped,
+      );
+      if (_ribbonController.update(dt: dt, hasActiveRibbon: hasRibbon)) {
+        final pair = _ribbonController.createPair(
+          viewportHeight: _lastSize.height,
+        );
+        _balloons.addAll(pair);
+        widget.gameState.log(
+          'SKYWARD RIBBON SPAWN group=${pair.first.ribbonGroupId} '
+          'members=${pair.length}',
           type: DebugEventType.system,
         );
       }
@@ -1233,6 +1258,7 @@ class _GameScreenState extends State<GameScreen>
   void _replay() {
     _leadController.reset();
     _windController.reset();
+    _ribbonController.reset();
     if (_skywardRun != null) {
       _skywardRun = SkywardLevelRun(_skywardRun!.level);
     }
