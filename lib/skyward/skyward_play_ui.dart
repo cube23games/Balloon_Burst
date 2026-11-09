@@ -4,12 +4,18 @@ import 'package:balloon_burst/skyward/world_one.dart';
 class SkywardObjectiveHud extends StatelessWidget {
   final SkywardLevelRun run;
   final bool leadWarning;
+  final bool windWarning;
+  final bool windGusting;
+  final int windDirection;
   final VoidCallback onExit;
 
   const SkywardObjectiveHud({
     super.key,
     required this.run,
     this.leadWarning = false,
+    this.windWarning = false,
+    this.windGusting = false,
+    this.windDirection = 1,
     required this.onExit,
   });
 
@@ -63,6 +69,19 @@ class SkywardObjectiveHud extends StatelessWidget {
                         '↓ WHISTLE! LEAD INCOMING',
                         style: TextStyle(
                           color: Color(0xFFFFCC4D),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    if (windWarning || windGusting)
+                      Text(
+                        windWarning
+                            ? '${windDirection > 0 ? '→' : '←'} CROSSWIND INCOMING'
+                            : '${windDirection > 0 ? '→' : '←'} GUST! KEEP YOUR AIM',
+                        key: const ValueKey('skyward-wind-warning'),
+                        style: TextStyle(
+                          color: windGusting
+                              ? const Color(0xFF89F7FF)
+                              : const Color(0xFFFFE082),
                           fontWeight: FontWeight.w900,
                         ),
                       ),
