@@ -156,15 +156,11 @@ class BalloonPainter extends CustomPainter {
   /// Red downward arrow and Pb marking identify this descending lead balloon.
   void _paintRibbonLinks(Canvas canvas, Size size) {
     final firstByGroup = <String, Balloon>{};
-    final glowPaint = Paint()
-      ..color = const Color(0x8856F8FF)
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-    final ribbonPaint = Paint()
-      ..color = const Color(0xFFFFE07A)
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round;
+    const ribbonRadius = baseBalloonRadius * 1.10;
 
+    // The ends attach near the inner LOWER shoulders rather than between
+    // balloon centers. A sagging fabric strip (not a straight line) makes
+    // the link look loose as each balloon sways independently.
     for (final balloon in balloons) {
       if (balloon.isPopped || balloon.type != BalloonType.ribbon) continue;
       final group = balloon.ribbonGroupId;
@@ -174,16 +170,74 @@ class BalloonPainter extends CustomPainter {
         firstByGroup[group] = balloon;
         continue;
       }
-      final a = Offset(
-        size.width * (0.5 + first.xOffset * 0.5),
-        first.y,
+      final left = first.xOffset < balloon.xOffset ? first : balloon;
+      final right = identical(left, first) ? balloon : first;
+      final centerLeft = Offset(
+        size.width * (0.5 + left.xOffset * 0.5),
+        left.y,
       );
-      final b = Offset(
-        size.width * (0.5 + balloon.xOffset * 0.5),
-        balloon.y,
+      final centerRight = Offset(
+        size.width * (0.5 + right.xOffset * 0.5),
+        right.y,
       );
-      canvas.drawLine(a, b, glowPaint);
-      canvas.drawLine(a, b, ribbonPaint);
+      final a = centerLeft + const Offset(ribbonRadius * 0.58, ribbonRadius * 0.55);
+      final b = centerRight + const Offset(-ribbonRadius * 0.58, ribbonRadius * 0.55);
+      final span = b.dx - a.dx;
+      if (span <= 0) continue;
+
+      final flutter = sin(left.age * 1.9 + left.phase) * 4.0;
+      final sag = (14.0 + span * 0.28).clamp(16.0, 34.0) + flutter;
+      final midX = (a.dx + b.dx) * 0.5 +
+          sin(left.age * 1.3 + right.phase) * 3.0;
+      final midY = max(a.dy, b.dy) + sag;
+
+      final centerLine = Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(midX, midY, b.dx, b.dy);
+
+      // Soft shadow beneath a thin, curved strip; no heavy blur or
+      // per-frame object allocation outside the existing CustomPainter.
+      canvas.drawPath(
+        centerLine,
+        Paint()
+          ..color = const Color(0x6656D4E9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 9.0
+          ..strokeCap = StrokeCap.round
+          ..isAntiAlias = true,
+      );
+
+      // A closed, tapering silk band with a highlight. It flexes with the
+      // positions of both balloons and an independent cloth flutter.
+      final fabric = Path()
+        ..moveTo(a.dx, a.dy - 3.2)
+        ..quadraticBezierTo(midX - 2.5, midY - 4.2, b.dx, b.dy - 2.2)
+        ..lineTo(b.dx, b.dy + 2.2)
+        ..quadraticBezierTo(midX + 2.5, midY + 3.8, a.dx, a.dy + 3.2)
+        ..close();
+      canvas.drawPath(
+        fabric,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0xFFFFF7BF),
+              Color(0xFFFFC955),
+              Color(0xFFE59B35),
+            ],
+          ).createShader(fabric.getBounds())
+          ..isAntiAlias = true,
+      );
+      canvas.drawPath(
+        centerLine,
+        Paint()
+          ..color = const Color(0x99FFF4C2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.25
+          ..strokeCap = StrokeCap.round
+          ..isAntiAlias = true,
+      );
     }
   }
 
