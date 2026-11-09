@@ -731,10 +731,13 @@ class _GameScreenState extends State<GameScreen>
 
       final engineSpeed = widget.engine.difficulty.snapshot.speedMultiplier;
 
+      final isRibbon = _levelUsesRibbon && b.type == BalloonType.ribbon;
       final speed = baseRiseSpeed *
           widget.spawner.speedMultiplier *
           engineSpeed *
-          b.riseSpeedMultiplier;
+          (isRibbon
+              ? RibbonChainController.sharedRiseSpeedMultiplier
+              : b.riseSpeedMultiplier);
 
       final isLead = b.type == BalloonType.lead;
       final moved = b.movedBy(isLead
@@ -742,7 +745,11 @@ class _GameScreenState extends State<GameScreen>
               b.riseSpeedMultiplier * dt
           : -speed * dt);
       final driftX = moved.driftedX(
-        amplitude: isLead ? 0.015 : 0.035,
+        // Ribbon partners have distinct phases, so each one drifts
+        // independently without changing the regular/Endless motion.
+        amplitude: isLead
+            ? 0.015
+            : (isRibbon ? RibbonChainController.swayAmplitude : 0.035),
         frequency: 0.015,
       );
 
