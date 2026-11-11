@@ -35,7 +35,7 @@ jobs:
         run: |
           bash -n tools/build_apk_with_network_retry.sh
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
