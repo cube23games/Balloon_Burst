@@ -82,6 +82,11 @@ class _GameScreenState extends State<GameScreen>
   bool get _levelUsesLead =>
       _skywardRun?.level.hazards.contains(SkywardHazard.leadBalloon) ?? false;
 
+  /// The Level 7 combination, gated entirely to active Skyward gameplay.
+  /// Endless Arcade never enables any of these controllers.
+  bool get _levelUsesAllHazards =>
+      _levelUsesLead && _levelUsesWind && _levelUsesRibbon;
+
   bool get _isSkyward => _skywardRun != null;
 
   Timer? _shieldFlashTimer;
@@ -668,6 +673,18 @@ class _GameScreenState extends State<GameScreen>
           'SKYWARD LEAD SPAWN id=${lead.id} y=${lead.y.toStringAsFixed(1)}',
           type: DebugEventType.system,
         );
+        if (_levelUsesAllHazards) {
+          final ribbonActive = _balloons.any(
+            (balloon) =>
+                balloon.type == BalloonType.ribbon && !balloon.isPopped,
+          );
+          widget.gameState.log(
+            'SKYWARD LEADSTORM LEAD_SPAWN id=${lead.id} '
+            'windPhase=${_windController.phase.name} '
+            'ribbonActive=$ribbonActive',
+            type: DebugEventType.system,
+          );
+        }
       }
     }
 
@@ -703,6 +720,18 @@ class _GameScreenState extends State<GameScreen>
           'windPhase=${_levelUsesWind ? _windController.phase.name : 'off'}',
           type: DebugEventType.system,
         );
+        if (_levelUsesAllHazards) {
+          final leadActive = _balloons.any(
+            (balloon) => balloon.type == BalloonType.lead && !balloon.isPopped,
+          );
+          widget.gameState.log(
+            'SKYWARD LEADSTORM RIBBON_SPAWN '
+            'group=${pair.first.ribbonGroupId} '
+            'windPhase=${_windController.phase.name} '
+            'leadActive=$leadActive',
+            type: DebugEventType.system,
+          );
+        }
       }
     }
 
@@ -1318,6 +1347,17 @@ class _GameScreenState extends State<GameScreen>
         leadCaught: leadCaught,
         triggeredChain: chainExtraPops > 0,
       );
+      if (_levelUsesAllHazards && (leadCaught || chainExtraPops > 0)) {
+        final run = _skywardRun!;
+        widget.gameState.log(
+          'SKYWARD LEADSTORM OBJECTIVE '
+          'pops=${run.popped}/${run.level.popsRequired} '
+          'lead=${run.leadCatches}/${run.level.leadCatchesRequired} '
+          'chains=${run.chainReactions}/${run.level.chainReactionsRequired} '
+          'windPhase=${_windController.phase.name}',
+          type: DebugEventType.system,
+        );
+      }
       if (_skywardRun!.isComplete) {
         widget.engine.runLifecycle.endRun(EndReason.victory);
         _syncQaRunEvidence();
