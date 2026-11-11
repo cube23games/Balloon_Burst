@@ -14,7 +14,7 @@ class SkywardSelectScreen extends StatelessWidget {
     required this.onBack,
   });
 
-  static const int playableThrough = 6;
+  static const int playableThrough = 7;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +50,8 @@ class SkywardSelectScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Crosswinds and floating ribbon chains now collide in Spiraling Skies. '
-              'Clear each challenge to unlock the next.',
+              'Leadstorm combines whistling lead balloons, crosswinds and floating '
+              'ribbon chains. Clear each challenge to unlock the next.',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 20),
@@ -116,6 +116,7 @@ class _LevelTile extends StatelessWidget {
         : isUnlocked
             ? '${level.popsRequired} pops  ·  '
                 '${level.comboRequired > 0 ? 'Combo ${level.comboRequired}  ·  ' : ''}'
+                '${level.leadCatchesRequired > 0 ? 'Lead ${level.leadCatchesRequired}  ·  ' : ''}'
                 '${level.chainReactionsRequired > 0 ? 'Chains ${level.chainReactionsRequired}  ·  ' : ''}'
                 'Max ${level.maxEscapes} escapes'
             : 'Complete the previous level';
