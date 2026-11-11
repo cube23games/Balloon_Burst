@@ -29,12 +29,22 @@ import 'package:balloon_burst/screens/leaderboard_screen.dart';
 import 'package:balloon_burst/tj_engine/engine/run/models/run_event.dart';
 import 'package:balloon_burst/tj_engine/engine/run/models/run_state.dart';
 import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
+import 'package:balloon_burst/skyward/world_one.dart';
+import 'package:balloon_burst/skyward/skyward_play_ui.dart';
+import 'package:balloon_burst/skyward/lead_balloon_controller.dart';
+import 'package:balloon_burst/skyward/microburst_controller.dart';
+import 'package:balloon_burst/skyward/ribbon_chain_controller.dart';
 
 class GameScreen extends StatefulWidget {
   final GameState gameState;
   final BalloonSpawner spawner;
   final TJEngine engine;
   final VoidCallback onRequestDebug;
+  final VoidCallback onMainMenu;
+  final SkywardLevelRun? skywardRun;
+  final ValueChanged<SkywardLevelRun>? onSkywardCompleted;
+  final VoidCallback? onSkywardExit;
+  final VoidCallback? onSkywardNext;
 
   const GameScreen({
     super.key,
@@ -42,6 +52,11 @@ class GameScreen extends StatefulWidget {
     required this.spawner,
     required this.engine,
     required this.onRequestDebug,
+    required this.onMainMenu,
+    this.skywardRun,
+    this.onSkywardCompleted,
+    this.onSkywardExit,
+    this.onSkywardNext,
   });
 
   @override
@@ -53,6 +68,21 @@ class _GameScreenState extends State<GameScreen>
   late final Ticker _ticker;
   late final GameController _controller;
   late final WorldSurgePulse _surge;
+  SkywardLevelRun? _skywardRun;
+  late final LeadBalloonController _leadController;
+  late final MicroburstController _windController;
+  late final RibbonChainController _ribbonController;
+
+  bool get _levelUsesWind =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.microburst) ?? false;
+
+  bool get _levelUsesRibbon =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.ribbonChain) ?? false;
+
+  bool get _levelUsesLead =>
+      _skywardRun?.level.hazards.contains(SkywardHazard.leadBalloon) ?? false;
+
+  bool get _isSkyward => _skywardRun != null;
 
   Timer? _shieldFlashTimer;
   Timer? _reviveProtectionTimer;
@@ -197,6 +227,8 @@ class _GameScreenState extends State<GameScreen>
       'cluster=${widget.spawner.lastSpawnBatch} '
       'runSec=${widget.spawner.engineElapsedSeconds.toStringAsFixed(1)} '
       'audio=${AudioPlayerService.muted ? 'muted' : 'on'} '
+      'wind=${_levelUsesWind ? _windController.phase.name : 'off'} '
+      'windSway=${_levelUsesWind ? _windController.normalizedSway.toStringAsFixed(3) : '0'} '
       'lagForgive=$_lagForgivenessTicks',
       type: DebugEventType.perf,
     );
@@ -236,6 +268,10 @@ class _GameScreenState extends State<GameScreen>
   @override
   void initState() {
     super.initState();
+    _skywardRun = widget.skywardRun;
+    _leadController = LeadBalloonController();
+    _windController = MicroburstController();
+    _ribbonController = RibbonChainController();
 
     WidgetsBinding.instance.addObserver(this);
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
@@ -620,6 +656,56 @@ class _GameScreenState extends State<GameScreen>
           widget.engine.difficulty.snapshot.maxSimultaneousSpawns,
     );
 
+    if (_levelUsesLead && !_showIntro && _lastSize.height > 0) {
+      final hasLead = _balloons.any(
+        (balloon) => balloon.type == BalloonType.lead && !balloon.isPopped,
+      );
+      if (_leadController.update(dt: dt, hasActiveLead: hasLead)) {
+        final lead = _leadController.createLead();
+        _balloons.add(lead);
+        AudioPlayerService.playLeadWhistle();
+        widget.gameState.log(
+          'SKYWARD LEAD SPAWN id=${lead.id} y=${lead.y.toStringAsFixed(1)}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
+    // Skyward-only wind is scheduled after the intro, never during Endless.
+    // The same normalized offset drives rendering and hit testing, because
+    // the moved Balloon model stores its actual tappable xOffset.
+    if (_levelUsesWind && !_showIntro && _lastSize.width > 0) {
+      if (_windController.update(dt)) {
+        final phase = _windController.phase.name;
+        final direction = _windController.direction > 0 ? 'right' : 'left';
+        widget.gameState.log(
+          'SKYWARD WIND phase=$phase direction=$direction '
+          'gusts=${_windController.gustCount}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
+    // Skyward ribbon groups use a separate deterministic spawn schedule.
+    // They are never added to Endless Arcade's random balloon pool.
+    if (_levelUsesRibbon && !_showIntro && _lastSize.height > 0) {
+      final hasRibbon = _balloons.any(
+        (balloon) => balloon.type == BalloonType.ribbon && !balloon.isPopped,
+      );
+      if (_ribbonController.update(dt: dt, hasActiveRibbon: hasRibbon)) {
+        final pair = _ribbonController.createPair(
+          viewportHeight: _lastSize.height,
+        );
+        _balloons.addAll(pair);
+        widget.gameState.log(
+          'SKYWARD RIBBON SPAWN group=${pair.first.ribbonGroupId} '
+          'members=${pair.length} '
+          'windPhase=${_levelUsesWind ? _windController.phase.name : 'off'}',
+          type: DebugEventType.system,
+        );
+      }
+    }
+
     final currentWorld = widget.spawner.currentWorld;
     if (currentWorld != _lastReportedWorld) {
       _lastReportedWorld = currentWorld;
@@ -628,7 +714,7 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    if (widget.spawner.totalPops >= _tapJunkieVictoryPops &&
+    if (!_isSkyward && widget.spawner.totalPops >= _tapJunkieVictoryPops &&
         widget.engine.runLifecycle.state == RunState.running) {
       widget.engine.runLifecycle.endRun(EndReason.victory);
       _syncQaRunEvidence();
@@ -646,18 +732,61 @@ class _GameScreenState extends State<GameScreen>
 
       final engineSpeed = widget.engine.difficulty.snapshot.speedMultiplier;
 
+      final isRibbon = _levelUsesRibbon && b.type == BalloonType.ribbon;
       final speed = baseRiseSpeed *
           widget.spawner.speedMultiplier *
           engineSpeed *
-          b.riseSpeedMultiplier;
+          (isRibbon
+              ? RibbonChainController.sharedRiseSpeedMultiplier
+              : b.riseSpeedMultiplier);
 
-      final moved = b.movedBy(-speed * dt);
+      final isLead = b.type == BalloonType.lead;
+      final moved = b.movedBy(isLead
+          ? LeadBalloonController.descentPixelsPerSecond *
+              b.riseSpeedMultiplier * dt
+          : -speed * dt);
       final driftX = moved.driftedX(
-        amplitude: 0.035,
+        // Ribbon partners have distinct phases, so each one drifts
+        // independently without changing the regular/Endless motion.
+        amplitude: isLead
+            ? 0.015
+            : (isRibbon ? RibbonChainController.swayAmplitude : 0.035),
         frequency: 0.015,
       );
 
-      _balloons[i] = moved.withXOffset(driftX);
+      _balloons[i] = moved.withXOffset(
+        _levelUsesWind && !isLead && !isRibbon
+            ? _windController.applySway(driftX)
+            : driftX,
+      );
+    }
+
+    // Level 6 mixed hazard: gusts move each connected ribbon group as
+    // one object, preserving the two balloons' organic independent sway.
+    // A member at the edge caps the group's shared wind displacement.
+    // This runs only for Skyward levels containing BOTH hazards; normal
+    // balloons still use the original independent wind limit above.
+    if (_levelUsesWind && _levelUsesRibbon && _windController.isGusting) {
+      final groups = <String, List<int>>{};
+      for (var i = 0; i < _balloons.length; i++) {
+        final b = _balloons[i];
+        final groupId = b.ribbonGroupId;
+        if (!b.isPopped &&
+            b.type == BalloonType.ribbon &&
+            groupId != null) {
+          groups.putIfAbsent(groupId, () => <int>[]).add(i);
+        }
+      }
+      for (final members in groups.values) {
+        final shift = _windController.boundedGroupSway(
+          members.map((index) => _balloons[index].xOffset),
+        );
+        if (shift == 0) continue;
+        for (final index in members) {
+          final b = _balloons[index];
+          _balloons[index] = b.withXOffset(b.xOffset + shift);
+        }
+      }
     }
 
     for (int i = 0; i < _particles.length; i++) {
@@ -685,8 +814,26 @@ class _GameScreenState extends State<GameScreen>
 
     for (int i = _balloons.length - 1; i >= 0; i--) {
       final b = _balloons[i];
-      if (b.y < -balloonRadius) {
-        if (!b.isPopped) escapedThisTick++;
+      if (LeadBalloonController.isBeyondExit(
+        balloon: b,
+        viewportHeight: _lastSize.height,
+        margin: balloonRadius,
+      )) {
+        if (!b.isPopped) {
+          // A connected ribbon PAIR is one missed opportunity, even when
+          // the two members cross the exit on adjacent frames.
+          if (_levelUsesRibbon && b.type == BalloonType.ribbon) {
+            if (_ribbonController.shouldCountEscape(b)) escapedThisTick++;
+          } else {
+            escapedThisTick++;
+          }
+          if (b.type == BalloonType.lead) {
+            widget.gameState.log(
+              'SKYWARD LEAD ESCAPED id=${b.id}',
+              type: DebugEventType.system,
+            );
+          }
+        }
         _balloons.removeAt(i);
       }
     }
@@ -723,9 +870,23 @@ class _GameScreenState extends State<GameScreen>
           escapedThisTick,
         );
 
+        // Keep level failures consistent with TJ Engine's active shield:
+        // one shielded escape event is absorbed rather than charged.
+        final shieldAbsorbsEvent =
+            widget.engine.runLifecycle.isShieldActive;
+        if (_skywardRun != null && !shieldAbsorbsEvent) {
+          for (var i = 0; i < escapedThisTick; i++) {
+            _skywardRun!.recordEscape();
+          }
+        }
+
         widget.engine.runLifecycle.report(
           EscapeEvent(count: escapedThisTick),
         );
+
+        if (_skywardRun?.isFailed == true && !_isRunEnded) {
+          widget.engine.runLifecycle.endRun(EndReason.escapeLimit);
+        }
 
         if (_isRunEnded) {
           _syncQaRunEvidence();
@@ -789,6 +950,8 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _maybeSubmitLeaderboard() {
+    // Level-based attempts must not contaminate Endless Arcade rankings.
+    if (_isSkyward) return;
     final summary = widget.engine.runLifecycle.latestSummary;
     if (summary == null) return;
 
@@ -888,6 +1051,54 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  int _popLinkedRibbonPeers(Balloon? tapped) {
+    if (!_levelUsesRibbon || tapped == null) return 0;
+    final peers = RibbonChainController.linkedPeers(
+      tapped: tapped,
+      balloons: _balloons,
+    );
+    if (peers.isEmpty) return 0;
+
+    var extraPops = 0;
+    for (final peer in peers) {
+      final index = _balloons.indexWhere(
+        (balloon) => balloon.id == peer.id && !balloon.isPopped,
+      );
+      if (index < 0) continue;
+      _balloons[index] = _balloons[index].pop();
+
+      // Each physically popped balloon is worth one pop in the spawner,
+      // TJ run lifecycle and level objective. Only the player's initial
+      // contact counts as a tap, so accuracy/streak is not artificially
+      // multiplied by the chain's automatic secondary pops.
+      widget.spawner.registerPop(widget.gameState);
+      widget.engine.runLifecycle.report(PopEvent(points: 1));
+      extraPops++;
+
+      final x = _lastSize.width * (0.5 + peer.xOffset * 0.5);
+      widget.engine.juice.spawnScoreBurst(
+        x: x,
+        y: peer.y,
+        value: 1,
+        isPerfect: false,
+      );
+      // Keep auxiliary effects lightweight on lower-end Android devices.
+      _particles.addAll(PopParticle.burst(x, peer.y).take(5));
+      _shockwaves.add(
+        PopShockwave(x: x, y: peer.y, age: 0, life: 0.28),
+      );
+    }
+
+    if (extraPops > 0) {
+      widget.gameState.log(
+        'SKYWARD RIBBON CHAIN group=${tapped.ribbonGroupId} '
+        'pops=${1 + extraPops} extra=$extraPops',
+        type: DebugEventType.system,
+      );
+    }
+    return extraPops;
+  }
+
   void _handleTap(TapDownDetails details) {
     if (_showIntro) return;
     if (_isGameplayFrozenByLifecycle) return;
@@ -915,7 +1126,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     widget.engine.input.registerTap();
-    TapHandler.handleTap(
+    final poppedBalloon = TapHandler.handleTap(
       details: details,
       lastSize: _lastSize,
       balloons: _balloons,
@@ -930,6 +1141,7 @@ class _GameScreenState extends State<GameScreen>
     final missesAfter = _controller.missCount;
 
     if (missesAfter > missesBefore) {
+      _skywardRun?.recordMiss();
       _missPopups.add(
         MissPopup(
           x: p.dx,
@@ -1013,7 +1225,16 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
-    widget.engine.runLifecycle.report(PopEvent(points: 1));
+    final leadCaught = poppedBalloon?.type == BalloonType.lead;
+    final earnedPoints = leadCaught ? 5 : 1;
+    if (leadCaught) {
+      widget.gameState.log(
+        'SKYWARD LEAD CAUGHT id=${poppedBalloon!.id} bonus=$earnedPoints',
+        type: DebugEventType.system,
+      );
+    }
+    widget.engine.runLifecycle.report(PopEvent(points: earnedPoints));
+    final chainExtraPops = _popLinkedRibbonPeers(poppedBalloon);
 
     final shouldPlayPopSound =
         !_skipPopAudioDuringLagForgiveness || _lagForgivenessTicks == 0;
@@ -1025,7 +1246,7 @@ class _GameScreenState extends State<GameScreen>
     widget.engine.juice.spawnScoreBurst(
       x: p.dx,
       y: p.dy,
-      value: 1,
+      value: earnedPoints,
       isPerfect: _controller.lastTapPerfect,
     );
 
@@ -1087,6 +1308,39 @@ class _GameScreenState extends State<GameScreen>
     if (nextMilestone > prevMilestone) {
       AudioPlayerService.playStreakMilestone(nextMilestone);
     }
+
+    // A linked pair counts two physical pops and one actual player tap.
+    // Ribbon objectives require at least one SECONDARY pop in the same
+    // group, preventing an isolated ribbon or normal tap from earning a chain.
+    if (_skywardRun != null && widget.spawner.totalPops > popsBefore) {
+      _skywardRun!.recordPop(
+        balloonsPopped: 1 + chainExtraPops,
+        leadCaught: leadCaught,
+        triggeredChain: chainExtraPops > 0,
+      );
+      if (_skywardRun!.isComplete) {
+        widget.engine.runLifecycle.endRun(EndReason.victory);
+        _syncQaRunEvidence();
+        widget.onSkywardCompleted?.call(_skywardRun!);
+      }
+    }
+  }
+
+  void _exitSkyward() {
+    if (!_isSkyward) return;
+    if (!_isRunEnded) {
+      widget.engine.runLifecycle.endRun(EndReason.playerQuit);
+      _syncQaRunEvidence();
+    }
+    widget.onSkywardExit?.call();
+  }
+
+  void _returnToMainMenu() {
+    // Endless results have already finalized their reward and leaderboard.
+    // Leaving must not end or credit the same run a second time.
+    if (_isSkyward || !_isRunEnded) return;
+    _ticker.stop();
+    widget.onMainMenu();
   }
 
   void _handleLongPress() {
@@ -1097,6 +1351,12 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _replay() {
+    _leadController.reset();
+    _windController.reset();
+    _ribbonController.reset();
+    if (_skywardRun != null) {
+      _skywardRun = SkywardLevelRun(_skywardRun!.level);
+    }
     _balloons.clear();
     _particles.clear();
     _shockwaves.clear();
@@ -1370,6 +1630,15 @@ class _GameScreenState extends State<GameScreen>
                 streak: widget.engine.runLifecycle.getSnapshot().streak,
               ),
               _buildLifecyclePauseOverlay(),
+              if (_skywardRun != null)
+                SkywardObjectiveHud(
+                  run: _skywardRun!,
+                  leadWarning: _levelUsesLead && _leadController.warningSoon,
+                  windWarning: _levelUsesWind && _windController.warningSoon,
+                  windGusting: _levelUsesWind && _windController.isGusting,
+                  windDirection: _windController.direction,
+                  onExit: _exitSkyward,
+                ),
               if (_showIntro)
                 CarnivalIntroOverlay(
                   onComplete: () {
@@ -1378,10 +1647,20 @@ class _GameScreenState extends State<GameScreen>
                     });
                   },
                 ),
-              if (_isRunEnded && summary != null)
+              if (_isSkyward && _isRunEnded && _skywardRun != null)
+                SkywardResultOverlay(
+                  run: _skywardRun!,
+                  onReplay: _replay,
+                  onMap: _exitSkyward,
+                  onNext: _skywardRun!.isComplete
+                      ? widget.onSkywardNext
+                      : null,
+                ),
+              if (!_isSkyward && _isRunEnded && summary != null)
                 RunEndOverlay(
                   state: RunEndState.fromSummary(summary),
                   onReplay: _replay,
+                  onMainMenu: _returnToMainMenu,
                   onRevive: summary.endReason == EndReason.victory ? null : _revive,
                   placement: _leaderboardPlacement,
                   onViewLeaderboard: () {
@@ -1401,7 +1680,8 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   ),
                 ),
-              if (kDebugMode || kEnableQaAutoTap)
+              if ((!_isSkyward || !_isRunEnded) &&
+                  (kDebugMode || kEnableQaAutoTap))
                 Positioned(
                   top: 44,
                   left: 16,
@@ -1423,7 +1703,8 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   ),
                 ),
-              if (_showHud && (kDebugMode || kEnableQaAutoTap))
+              if ((!_isSkyward || !_isRunEnded) &&
+                  _showHud && (kDebugMode || kEnableQaAutoTap))
                 Positioned(
                   top: 104,
                   left: 16,
@@ -1444,7 +1725,8 @@ class _GameScreenState extends State<GameScreen>
                     ],
                   ),
                 ),
-              Positioned(
+              if (!_isSkyward || !_isRunEnded)
+                Positioned(
                 top: 44,
                 right: 16,
                 child: Row(

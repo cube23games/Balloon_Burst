@@ -6,13 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:balloon_burst/game/game_state.dart';
 import 'package:balloon_burst/game/game_controller.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
+import 'package:balloon_burst/game/balloon_type.dart';
 import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/screens/game/effects/world_surge_pulse.dart';
 
 class TapHandler {
   static const bool _verboseTapLogging = false;
 
-  static void handleTap({
+  static Balloon? handleTap({
     required TapDownDetails details,
     required Size lastSize,
     required List<Balloon> balloons,
@@ -23,7 +24,7 @@ class TapHandler {
     required double balloonRadius,
     required double hitForgiveness,
   }) {
-    handleTapAt(
+    return handleTapAt(
       tapPos: details.localPosition,
       lastSize: lastSize,
       balloons: balloons,
@@ -36,7 +37,7 @@ class TapHandler {
     );
   }
 
-  static void handleTapAt({
+  static Balloon? handleTapAt({
     required Offset tapPos,
     required Size lastSize,
     required List<Balloon> balloons,
@@ -47,13 +48,14 @@ class TapHandler {
     required double balloonRadius,
     required double hitForgiveness,
   }) {
-    if (lastSize == Size.zero) return;
+    if (lastSize == Size.zero) return null;
 
     final centerX = lastSize.width * 0.5;
     final widthHalf = lastSize.width * 0.5;
 
     bool hit = false;
     bool perfectHit = false;
+    Balloon? poppedBalloon;
 
     double? closestScore;
     double? closestDist;
@@ -82,7 +84,13 @@ class TapHandler {
 
       final speedFactor = (b.riseSpeedMultiplier - 1.0).clamp(0.0, 1.5);
       final dynamicBonus = speedFactor * 12.0;
-      final effectiveRadius = balloonRadius + hitForgiveness + dynamicBonus;
+      // Only the new larger lead type gets a larger touch target.
+      // Existing Endless Arcade hitboxes remain unchanged.
+      final radiusMultiplier = b.type == BalloonType.lead
+          ? balloonTypeConfig[BalloonType.lead]!.hitRadiusMultiplier
+          : 1.0;
+      final effectiveRadius = balloonRadius * radiusMultiplier +
+          hitForgiveness + dynamicBonus;
 
       // Track closest balloon for logging
       if (closestScore == null || tapScore < closestScore) {
@@ -109,6 +117,7 @@ class TapHandler {
     // ---------------------------------------------------------
     if (bestHitIndex != null) {
       final b = balloons[bestHitIndex];
+      poppedBalloon = b;
       balloons[bestHitIndex] = b.pop();
 
       if (bestHitDist != null && bestHitDist <= balloonRadius * 0.45) {
@@ -167,6 +176,7 @@ class TapHandler {
     }
 
     controller.registerTap(hit: hit, perfect: perfectHit);
+    return poppedBalloon;
   }
 
   static void clearTouch() {

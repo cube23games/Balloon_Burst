@@ -8,11 +8,13 @@ import 'package:balloon_burst/screens/leaderboard_screen.dart';
 
 class StartScreen extends StatefulWidget {
   final VoidCallback onStart;
+  final VoidCallback onSkyward;
   final TJEngine engine;
 
   const StartScreen({
     super.key,
     required this.onStart,
+    required this.onSkyward,
     required this.engine,
   });
 
@@ -43,6 +45,12 @@ class _StartScreenState extends State<StartScreen> {
   Future<void> _handleStart() async {
     await AudioWarmup.warmUp();
     widget.onStart();
+  }
+
+  Future<void> _handleSkyward() async {
+    await AudioWarmup.warmUp();
+    if (!mounted) return;
+    widget.onSkyward();
   }
 
   Future<void> _claimReward() async {
@@ -395,9 +403,18 @@ class _StartScreenState extends State<StartScreen> {
                         const SizedBox(height: 28),
                         ElevatedButton(
                           style: _pillStyle(enabled: true, primary: true),
+                          onPressed: _handleSkyward,
+                          child: const Text(
+                            'SKYWARD JOURNEY',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ElevatedButton(
+                          style: _pillStyle(enabled: true),
                           onPressed: _handleStart,
                           child: const Text(
-                            'START',
+                            'ENDLESS ARCADE',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 18,

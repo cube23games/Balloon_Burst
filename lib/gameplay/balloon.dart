@@ -24,6 +24,9 @@ class Balloon {
   /// Balloon type
   final BalloonType type;
 
+  /// Non-null only for ribbon balloons linked within one Skyward chain group.
+  final String? ribbonGroupId;
+
   /// Age in seconds (used for smooth motion)
   final double age;
 
@@ -35,6 +38,7 @@ class Balloon {
     this.baseXOffset = 0.0,
     this.phase = 0.0,
     this.type = BalloonType.standard,
+    this.ribbonGroupId,
     this.age = 0.0,
   });
 
@@ -46,6 +50,7 @@ class Balloon {
         baseXOffset: baseXOffset,
         phase: phase,
         type: type,
+        ribbonGroupId: ribbonGroupId,
         age: age,
       );
 
@@ -57,6 +62,7 @@ class Balloon {
         baseXOffset: baseXOffset,
         phase: phase,
         type: type,
+        ribbonGroupId: ribbonGroupId,
         age: age + 0.016, // ~60fps time step
       );
 
@@ -68,6 +74,7 @@ class Balloon {
         baseXOffset: baseXOffset,
         phase: phase,
         type: type,
+        ribbonGroupId: ribbonGroupId,
         age: age,
       );
 

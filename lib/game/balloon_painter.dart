@@ -65,6 +65,10 @@ class BalloonPainter extends CustomPainter {
 
     final centerX = size.width / 2;
 
+    // Render linked ribbons behind the balloons themselves. The same
+    // xOffset/y coordinates are used for paint and hit-testing.
+    _paintRibbonLinks(canvas, size);
+
     for (final balloon in balloons) {
       if (balloon.isPopped) continue;
 
@@ -82,6 +86,15 @@ class BalloonPainter extends CustomPainter {
       final x = centerX + (balloon.xOffset * size.width * 0.5);
       final y = balloon.y;
       final center = Offset(x, y);
+
+      if (balloon.type == BalloonType.lead) {
+        _paintLeadBalloon(canvas, center, radius);
+        continue;
+      }
+      if (balloon.type == BalloonType.ribbon) {
+        _paintRibbonBalloon(canvas, center, radius);
+        continue;
+      }
 
       _paintStreakGlow(canvas, center, radius);
 
@@ -137,6 +150,262 @@ class BalloonPainter extends CustomPainter {
       _paintKnot(canvas, x, y, radius, styleVariant);
       _paintString(canvas, balloon, x, y, radius, seed, styleVariant);
     }
+  }
+
+  /// High-contrast metallic target, not dependent on sound or color alone.
+  /// Red downward arrow and Pb marking identify this descending lead balloon.
+  void _paintRibbonLinks(Canvas canvas, Size size) {
+    final firstByGroup = <String, Balloon>{};
+    const ribbonRadius = baseBalloonRadius * 1.10;
+
+    // The ends attach near the inner LOWER shoulders rather than between
+    // balloon centers. A sagging fabric strip (not a straight line) makes
+    // the link look loose as each balloon sways independently.
+    for (final balloon in balloons) {
+      if (balloon.isPopped || balloon.type != BalloonType.ribbon) continue;
+      final group = balloon.ribbonGroupId;
+      if (group == null) continue;
+      final first = firstByGroup[group];
+      if (first == null) {
+        firstByGroup[group] = balloon;
+        continue;
+      }
+      final left = first.xOffset < balloon.xOffset ? first : balloon;
+      final right = identical(left, first) ? balloon : first;
+      final centerLeft = Offset(
+        size.width * (0.5 + left.xOffset * 0.5),
+        left.y,
+      );
+      final centerRight = Offset(
+        size.width * (0.5 + right.xOffset * 0.5),
+        right.y,
+      );
+      final a = centerLeft + const Offset(ribbonRadius * 0.58, ribbonRadius * 0.55);
+      final b = centerRight + const Offset(-ribbonRadius * 0.58, ribbonRadius * 0.55);
+      final span = b.dx - a.dx;
+      if (span <= 0) continue;
+
+      final flutter = sin(left.age * 1.9 + left.phase) * 4.0;
+      final sag = (14.0 + span * 0.28).clamp(16.0, 34.0) + flutter;
+      final midX = (a.dx + b.dx) * 0.5 +
+          sin(left.age * 1.3 + right.phase) * 3.0;
+      final midY = max(a.dy, b.dy) + sag;
+
+      final centerLine = Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(midX, midY, b.dx, b.dy);
+
+      // Soft shadow beneath a thin, curved strip; no heavy blur or
+      // per-frame object allocation outside the existing CustomPainter.
+      canvas.drawPath(
+        centerLine,
+        Paint()
+          ..color = const Color(0x6656D4E9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 9.0
+          ..strokeCap = StrokeCap.round
+          ..isAntiAlias = true,
+      );
+
+      // A closed, tapering silk band with a highlight. It flexes with the
+      // positions of both balloons and an independent cloth flutter.
+      final fabric = Path()
+        ..moveTo(a.dx, a.dy - 3.2)
+        ..quadraticBezierTo(midX - 2.5, midY - 4.2, b.dx, b.dy - 2.2)
+        ..lineTo(b.dx, b.dy + 2.2)
+        ..quadraticBezierTo(midX + 2.5, midY + 3.8, a.dx, a.dy + 3.2)
+        ..close();
+      canvas.drawPath(
+        fabric,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0xFFFFF7BF),
+              Color(0xFFFFC955),
+              Color(0xFFE59B35),
+            ],
+          ).createShader(fabric.getBounds())
+          ..isAntiAlias = true,
+      );
+      canvas.drawPath(
+        centerLine,
+        Paint()
+          ..color = const Color(0x99FFF4C2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.25
+          ..strokeCap = StrokeCap.round
+          ..isAntiAlias = true,
+      );
+    }
+  }
+
+  void _paintRibbonBalloon(Canvas canvas, Offset center, double radius) {
+    // A slightly tapered balloon silhouette + knot, not a circular disc.
+    // Keep roughly the original visual/hit radius to preserve tap fairness.
+    final x = center.dx;
+    final y = center.dy;
+    final body = Path()
+      ..moveTo(x, y - radius * 1.04)
+      ..cubicTo(
+        x + radius * 0.96, y - radius * 1.13,
+        x + radius * 1.11, y - radius * 0.15,
+        x + radius * 0.78, y + radius * 0.56,
+      )
+      ..quadraticBezierTo(
+        x + radius * 0.42, y + radius * 1.01,
+        x, y + radius * 1.04,
+      )
+      ..quadraticBezierTo(
+        x - radius * 0.42, y + radius * 1.01,
+        x - radius * 0.78, y + radius * 0.56,
+      )
+      ..cubicTo(
+        x - radius * 1.11, y - radius * 0.15,
+        x - radius * 0.96, y - radius * 1.13,
+        x, y - radius * 1.04,
+      )
+      ..close();
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.38, -0.38),
+          radius: 1.15,
+          colors: <Color>[
+            Color(0xFFAEFFFF),
+            Color(0xFF1CCAD8),
+            Color(0xFF066198),
+          ],
+        ).createShader(body.getBounds())
+        ..isAntiAlias = true,
+    );
+    canvas.drawPath(
+      body,
+      Paint()
+        ..color = const Color(0xFFFFE79A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..isAntiAlias = true,
+    );
+
+    // Fabric marker remains visible even when a normal balloon overlaps.
+    final stripe = Path()
+      ..moveTo(x - radius * 0.47, y - radius * 0.71)
+      ..quadraticBezierTo(
+        x + radius * 0.03,
+        y,
+        x + radius * 0.43,
+        y + radius * 0.70,
+      );
+    canvas.drawPath(
+      stripe,
+      Paint()
+        ..color = const Color(0xFFFFF0AD)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.7
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true,
+    );
+    canvas.drawCircle(
+      Offset(x - radius * 0.36, y - radius * 0.38),
+      radius * 0.16,
+      Paint()..color = Colors.white.withOpacity(0.82),
+    );
+
+    final knot = Path()
+      ..moveTo(x - radius * 0.16, y + radius * 0.99)
+      ..lineTo(x + radius * 0.16, y + radius * 0.99)
+      ..lineTo(x, y + radius * 1.24)
+      ..close();
+    canvas.drawPath(knot, Paint()..color = const Color(0xFFFFD778));
+    final string = Path()
+      ..moveTo(x, y + radius * 1.23)
+      ..quadraticBezierTo(
+        x + radius * 0.22, y + radius * 1.59,
+        x - radius * 0.04, y + radius * 1.88,
+      );
+    canvas.drawPath(
+      string,
+      Paint()
+        ..color = const Color(0xAAE9F3FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..isAntiAlias = true,
+    );
+  }
+
+  void _paintLeadBalloon(Canvas canvas, Offset center, double radius) {
+    final outline = Paint()
+      ..color = const Color(0xFFFFCA55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..isAntiAlias = true;
+
+    final body = Paint()
+      ..isAntiAlias = true
+      ..shader = const RadialGradient(
+        center: Alignment(-0.35, -0.55),
+        radius: 1.1,
+        colors: [
+          Color(0xFFCCD6DF),
+          Color(0xFF8798A9),
+          Color(0xFF324152),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, body);
+    canvas.drawCircle(center, radius + 2, outline);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius * 0.7),
+      -0.2,
+      1.7,
+      false,
+      Paint()
+        ..color = const Color(0x66384858)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    final arrow = Path()
+      ..moveTo(center.dx - radius * 0.22, center.dy + radius * 0.20)
+      ..lineTo(center.dx + radius * 0.22, center.dy + radius * 0.20)
+      ..lineTo(center.dx, center.dy + radius * 0.58)
+      ..close();
+    canvas.drawPath(arrow, Paint()..color = const Color(0xFFFF4757));
+
+    final label = TextPainter(
+      text: const TextSpan(
+        text: 'Pb',
+        style: TextStyle(
+          color: Color(0xFF152435),
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    label.paint(
+      canvas,
+      Offset(center.dx - label.width / 2, center.dy - radius * 0.56),
+    );
+
+    // Downward streaks signal unusual movement from a distance.
+    final streak = Paint()
+      ..color = const Color(0x99FFCA55)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(center.dx - radius * 0.4, center.dy - radius * 1.8),
+      Offset(center.dx - radius * 0.4, center.dy - radius * 1.15),
+      streak,
+    );
+    canvas.drawLine(
+      Offset(center.dx + radius * 0.35, center.dy - radius * 1.55),
+      Offset(center.dx + radius * 0.35, center.dy - radius * 1.1),
+      streak,
+    );
   }
 
   void _paintStreakGlow(Canvas canvas, Offset center, double radius) {

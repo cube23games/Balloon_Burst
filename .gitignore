@@ -59,3 +59,11 @@ fix_gradle_repos.sh
 # Android SDK / command line tools (CI only)
 cmdline-tools/
 android-sdk/
+
+# Never commit private APK signing keys or credentials
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pfx
+**/key.properties
+**/keystore.properties

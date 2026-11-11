@@ -315,7 +315,11 @@ class BalloonSpawner {
   }
 
   BalloonType _chooseBalloonType() {
-    final entries = balloonTypeConfig.entries.toList();
+    // World 1's lead balloon is scheduled explicitly and must never
+    // appear in Endless Arcade's weighted random spawn pool.
+    final entries = balloonTypeConfig.entries
+        .where((entry) => entry.value.spawnWeight > 0)
+        .toList();
     final totalWeight =
         entries.fold<double>(0, (s, e) => s + e.value.spawnWeight);
 

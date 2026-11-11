@@ -44,9 +44,43 @@ android {
         }
     }
 
+    // A stable release signing certificate is mandatory for QA/release APKs.
+    // All four values are passed from GitHub Actions encrypted secrets.
+    // No debug key and no generated-on-runner fallback are allowed.
+    def signingValues = [
+        "BB_SIGNING_KEYSTORE_FILE": System.getenv("BB_SIGNING_KEYSTORE_FILE"),
+        "BB_SIGNING_STORE_PASSWORD": System.getenv("BB_SIGNING_STORE_PASSWORD"),
+        "BB_SIGNING_KEY_ALIAS": System.getenv("BB_SIGNING_KEY_ALIAS"),
+        "BB_SIGNING_KEY_PASSWORD": System.getenv("BB_SIGNING_KEY_PASSWORD"),
+    ]
+    def releaseRequested = gradle.startParameter.taskNames.any { taskName ->
+        taskName.toLowerCase(java.util.Locale.ROOT).contains("release")
+    }
+    def missingSigningValues = signingValues.findAll { entry ->
+        entry.value == null || entry.value.isEmpty()
+    }.keySet()
+    if (releaseRequested && !missingSigningValues.isEmpty()) {
+        throw new GradleException(
+            "Release signing credentials missing: " +
+            missingSigningValues.join(", ") +
+            ". Configure the stable QA signing secrets; never use a debug key."
+        )
+    }
+
+    signingConfigs {
+        release {
+            if (missingSigningValues.isEmpty()) {
+                storeFile file(signingValues["BB_SIGNING_KEYSTORE_FILE"])
+                storePassword signingValues["BB_SIGNING_STORE_PASSWORD"]
+                keyAlias signingValues["BB_SIGNING_KEY_ALIAS"]
+                keyPassword signingValues["BB_SIGNING_KEY_PASSWORD"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 }
