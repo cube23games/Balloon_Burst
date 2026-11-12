@@ -111,6 +111,8 @@ class SkywardResultOverlay extends StatelessWidget {
   final VoidCallback onReplay;
   final VoidCallback onMap;
   final VoidCallback? onNext;
+  /// QA-only path to export the completed attempt before replaying or leaving.
+  final VoidCallback? onDebugReport;
 
   const SkywardResultOverlay({
     super.key,
@@ -118,6 +120,7 @@ class SkywardResultOverlay extends StatelessWidget {
     required this.onReplay,
     required this.onMap,
     this.onNext,
+    this.onDebugReport,
   });
 
   @override
@@ -216,6 +219,12 @@ class SkywardResultOverlay extends StatelessWidget {
                         style: TextStyle(color: Colors.cyanAccent),
                       ),
                     ),
+                    if (onDebugReport != null)
+                      TextButton.icon(
+                        onPressed: onDebugReport,
+                        icon: const Icon(Icons.bug_report_outlined),
+                        label: const Text('VIEW / COPY DEBUG REPORT'),
+                      ),
                   ],
                 ),
               ),
