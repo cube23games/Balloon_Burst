@@ -22,7 +22,7 @@ void main() {
       });
       expect(SkywardWorldOne.level(5).hazards, {SkywardHazard.ribbonChain});
       expect(SkywardWorldOne.level(7).hazards, contains(SkywardHazard.leadBalloon));
-      expect(SkywardSelectScreen.playableThrough, 7);
+      expect(SkywardSelectScreen.playableThrough, 8);
     });
 
     test('two-second warning moves neither normal balloons nor linked pairs', () {
@@ -195,6 +195,6 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('In development'), findsWidgets);
+    expect(find.text('Complete the previous level'), findsWidgets);
   });
 }
