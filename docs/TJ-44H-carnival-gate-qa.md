@@ -26,6 +26,7 @@ These were defined in the original World 1 design catalog before activating this
 - Level 8 victory shows **WORLD 1 COMPLETE!** and **CARNIVAL GATE OPENED!** plus stars and the normal replay/map controls. No `NEXT LEVEL` action (no Level 9).
 - The map banner changes from "clear Level 8 to open the gate" to **CARNIVAL GATE OPENED! World 1 complete** only when all eight official progress slots have a saved clear. Completion is persisted through the existing `skyward.world1.stars.v1` key; no destructive migration.
 - The gate opening is a **World 1 achievement**, *not* a promise that a separately playable Carnival minigame already exists. An expansion can be designed later.
+- The QA build now offers **VIEW / COPY DEBUG REPORT** on the finished Skyward overlay (win or failed). It opens the existing Debug HUD with **Copy Detailed Report** / **Share Text File**. It does not replay, exit, or reset the completed run; the export shortcut is restricted to the existing debug/QA build gate. This addresses the missing end-of-run export access found in Moto G build #82. The log buffer can contain multiple attempts: use the summary run ID and endReason for the current attempt, and treat older chronological events as prior-attempt evidence.
 - An optional one-time-per-victory `SKYWARD CARNIVAL GATE OPENED` system event records popped/lead/chain/escape/star totals at the actual game victory boundary, then the existing app completion callback saves stars.
 
 ## Automated acceptance
@@ -51,7 +52,7 @@ The existing full Skyward + Endless regression suite remains in signed CI; new `
 - [ ] Return to the map, verify World 1 completion banner, appropriate total stars (up to **24/24** if three-star win), and all eight tiles unlocked. Fully close and reopen: saved stars and gate state persist.
 - [ ] Replay Level 8 and verify lead/wind/ribbon timers, group IDs and objectives restart; no stale previous victory.
 - [ ] Existing Level 7 remains playable, and Endless Arcade has **no special Skyward wind/ribbon/lead hazards** and its Main Menu works.
-- [ ] Export final Level 8 and Endless debug reports. Look for `SKYWARD CARNIVAL GATE OPENED`, lead/ribbon/wind events, hitches and any escapes. Watch hitch rate for new regressions.
+- [ ] **From the completed Level 8 victory screen**, tap **VIEW / COPY DEBUG REPORT**, then **Copy Detailed Report** (or **Share Text File**); return to the still-open victory overlay without replaying. Check `endReason=victory`, matching current-run `runId`, `SKYWARD CARNIVAL GATE OPENED`, wind/ribbon/lead events and performance hitches. For older/replayed logs, correlate run IDs carefully. Export Endless separately and compare hitches; it should still show wind=off.
 - [ ] Do **not** deliberately fail a level merely to test two escapes: deterministic automated tests already enforce that rule.
 
 ## Release governance
