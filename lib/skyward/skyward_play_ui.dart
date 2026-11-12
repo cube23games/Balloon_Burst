@@ -123,6 +123,7 @@ class SkywardResultOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final won = run.isComplete;
+    final worldFinished = won && run.level.unlocksCarnival;
     return Positioned.fill(
       child: ColoredBox(
         color: const Color(0xE90B1425),
@@ -136,13 +137,13 @@ class SkywardResultOverlay extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      won ? Icons.emoji_events : Icons.refresh,
+                      worldFinished ? Icons.local_activity : (won ? Icons.emoji_events : Icons.refresh),
                       color: won ? Colors.amberAccent : Colors.cyanAccent,
                       size: 68,
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      won ? 'LEVEL CLEARED!' : 'TRY AGAIN',
+                      worldFinished ? 'WORLD 1 COMPLETE!' : (won ? 'LEVEL CLEARED!' : 'TRY AGAIN'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -154,6 +155,26 @@ class SkywardResultOverlay extends StatelessWidget {
                       '${run.level.number}. ${run.level.title}',
                       style: const TextStyle(color: Colors.white70, fontSize: 18),
                     ),
+                    if (worldFinished) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        'CARNIVAL GATE OPENED!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFFFDB6F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'All eight Skyward challenges are cleared. '
+                        'Your World 1 stars are saved!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     if (won)
                       Text(
