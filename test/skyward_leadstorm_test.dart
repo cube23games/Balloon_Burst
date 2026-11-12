@@ -41,11 +41,11 @@ void main() {
         SkywardHazard.microburst,
         SkywardHazard.ribbonChain,
       });
-      expect(SkywardSelectScreen.playableThrough, 7);
+      expect(SkywardSelectScreen.playableThrough, 8);
       expect(SkywardWorldOne.level(6).leadCatchesRequired, 0);
       expect(SkywardWorldOne.level(8).unlocksCarnival, isTrue);
-      expect(SkywardSelectScreen.playableThrough < 8, isTrue,
-          reason: 'The World 1 finale still requires its own implementation');
+      expect(SkywardWorldOne.level(8).maxEscapes, 1,
+          reason: 'Carnival Gate is the tougher final challenge');
     });
 
     test('each timer independently starts under active gameplay time', () {
@@ -237,8 +237,8 @@ void main() {
       afterSix.submit(_completeLeadstorm());
       expect(afterSix.totalStars, 21);
       expect(afterSix.isLevelUnlocked(8), isTrue);
-      expect(SkywardSelectScreen.playableThrough, 7,
-          reason: 'Unlocked means visible, but Level 8 gameplay is gated');
+      expect(SkywardSelectScreen.playableThrough, 8,
+          reason: 'Level 8 is playable after the Level 7 progress gate');
     });
   });
 
@@ -282,7 +282,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Leadstorm selectable after Level 6; Carnival Gate disabled',
+  testWidgets('Leadstorm selectable after Level 6; Carnival Gate still locked',
       (tester) async {
     final progress = SkywardWorldOneProgress.fromSaved([3, 3, 3, 3, 3, 3]);
     final selected = <int>[];
@@ -309,9 +309,9 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('In development'), findsWidgets);
+    expect(find.text('Complete the previous level'), findsWidgets);
     await tester.tap(find.text('Carnival Gate'));
     expect(selected, [7],
-        reason: 'Level 8 remains gated until TJ-44H');
+        reason: 'Level 8 requires Level 7 victory, not just visibility');
   });
 }

@@ -17,7 +17,7 @@ void main() {
       expect(balloonTypeConfig[BalloonType.standard]!.spawnWeight, greaterThan(0));
       expect(SkywardWorldOne.level(4).hazards, isNot(contains(SkywardHazard.ribbonChain)));
       expect(SkywardWorldOne.level(5).hazards, contains(SkywardHazard.ribbonChain));
-      expect(SkywardSelectScreen.playableThrough, 7);
+      expect(SkywardSelectScreen.playableThrough, 8);
     });
 
     test('one connected pair enters after active gameplay and blocks respawn', () {

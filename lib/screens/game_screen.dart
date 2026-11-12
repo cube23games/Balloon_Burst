@@ -1361,6 +1361,16 @@ class _GameScreenState extends State<GameScreen>
       if (_skywardRun!.isComplete) {
         widget.engine.runLifecycle.endRun(EndReason.victory);
         _syncQaRunEvidence();
+        if (_skywardRun!.level.unlocksCarnival) {
+          final run = _skywardRun!;
+          widget.gameState.log(
+            'SKYWARD CARNIVAL GATE OPENED '
+            'pops=${run.popped} lead=${run.leadCatches} '
+            'chains=${run.chainReactions} escapes=${run.escaped} '
+            'stars=${run.stars}',
+            type: DebugEventType.system,
+          );
+        }
         widget.onSkywardCompleted?.call(_skywardRun!);
       }
     }
@@ -1692,7 +1702,14 @@ class _GameScreenState extends State<GameScreen>
                   run: _skywardRun!,
                   onReplay: _replay,
                   onMap: _exitSkyward,
-                  onNext: _skywardRun!.isComplete
+                  // The debug HUD is otherwise covered by the end overlay.
+                  // Reuse its existing copy/share controls without resetting
+                  // the finished Skyward run or changing Endless behavior.
+                  onDebugReport: (kDebugMode || kEnableQaAutoTap)
+                      ? widget.onRequestDebug
+                      : null,
+                  onNext: _skywardRun!.isComplete &&
+                          !_skywardRun!.level.unlocksCarnival
                       ? widget.onSkywardNext
                       : null,
                 ),

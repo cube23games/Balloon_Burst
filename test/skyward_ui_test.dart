@@ -31,15 +31,15 @@ void main() {
     expect(chosen, [1]);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [1], reason: 'Level 2 is still locked');
-    // Level 8 remains in development; scroll first.
+    // Level 8 is implemented, but locked until Level 7 is cleared.
     await tester.scrollUntilVisible(
       find.text('Carnival Gate'),
       240,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('In development'), findsWidgets);
+    expect(find.text('Complete the previous level'), findsWidgets);
     await tester.tap(find.text('Carnival Gate'));
-    expect(chosen, [1], reason: 'Unimplemented Carnival Gate is gated');
+    expect(chosen, [1], reason: 'Carnival Gate requires Level 7 completion');
   });
 
   testWidgets('Completing level 1 unlocks level 2', (tester) async {
@@ -57,8 +57,8 @@ void main() {
     expect(find.text('★★★'), findsOneWidget);
     await tester.tap(find.text('Cloud Combos'));
     expect(chosen, [2]);
-    // Leadstorm is playable; Carnival Gate remains gated.
-    expect(SkywardSelectScreen.playableThrough, 7);
+    // All eight levels are implemented, but unlocks are still sequential.
+    expect(SkywardSelectScreen.playableThrough, 8);
   });
 
   testWidgets('Result overlay exposes Next, Replay and Map actions', (tester) async {
