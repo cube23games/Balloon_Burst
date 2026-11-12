@@ -238,6 +238,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('finished finale can open report without clearing run or stars',
+      (tester) async {
+    var reportOpened = 0;
+    var replayed = false;
+    var exited = false;
+    final won = _clearCarnivalGate();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(children: [
+          SkywardResultOverlay(
+            run: won,
+            onMap: () => exited = true,
+            onReplay: () => replayed = true,
+            onDebugReport: () => reportOpened++,
+          ),
+        ]),
+      ),
+    ));
+    expect(find.text('WORLD 1 COMPLETE!'), findsOneWidget);
+    expect(find.text('VIEW / COPY DEBUG REPORT'), findsOneWidget);
+    await tester.ensureVisible(find.text('VIEW / COPY DEBUG REPORT'));
+    await tester.tap(find.text('VIEW / COPY DEBUG REPORT'));
+    expect(reportOpened, 1);
+    expect(replayed, isFalse);
+    expect(exited, isFalse);
+    expect(won.isComplete, isTrue);
+    expect(won.stars, 3);
+    expect(won.popped, 36);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('finale report action is hidden without authorized QA callback',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(children: [
+          SkywardResultOverlay(
+            run: _clearCarnivalGate(),
+            onMap: () {},
+            onReplay: () {},
+          ),
+        ]),
+      ),
+    ));
+    expect(find.text('VIEW / COPY DEBUG REPORT'), findsNothing);
+  });
+
   testWidgets('failed finale has no victory banner and no next-level action',
       (tester) async {
     final failed = SkywardLevelRun(SkywardWorldOne.level(8))
