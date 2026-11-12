@@ -1702,6 +1702,12 @@ class _GameScreenState extends State<GameScreen>
                   run: _skywardRun!,
                   onReplay: _replay,
                   onMap: _exitSkyward,
+                  // The debug HUD is otherwise covered by the end overlay.
+                  // Reuse its existing copy/share controls without resetting
+                  // the finished Skyward run or changing Endless behavior.
+                  onDebugReport: (kDebugMode || kEnableQaAutoTap)
+                      ? widget.onRequestDebug
+                      : null,
                   onNext: _skywardRun!.isComplete &&
                           !_skywardRun!.level.unlocksCarnival
                       ? widget.onSkywardNext
