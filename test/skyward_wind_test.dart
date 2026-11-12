@@ -77,7 +77,7 @@ void main() {
   });
 
   test('wind applies to Crosswind Alley; other early levels are unchanged', () {
-    expect(SkywardSelectScreen.playableThrough, 7);
+    expect(SkywardSelectScreen.playableThrough, 8);
     expect(SkywardWorldOne.level(1).hazards.contains(SkywardHazard.microburst),
         isFalse);
     expect(SkywardWorldOne.level(2).hazards.contains(SkywardHazard.microburst),
@@ -91,8 +91,9 @@ void main() {
     ]));
     expect(four.popsRequired, 24);
     expect(four.leadCatchesRequired, 2);
-    expect(SkywardSelectScreen.playableThrough < 8, isTrue,
-        reason: 'Carnival Gate Level 8 is not yet implemented');
+    expect(SkywardWorldOne.level(8).hazards,
+        contains(SkywardHazard.microburst),
+        reason: 'Finale reuses the established wind controller');
   });
 
   testWidgets('HUD warns with direction and announces an active gust',
