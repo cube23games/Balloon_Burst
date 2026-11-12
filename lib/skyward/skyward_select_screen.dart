@@ -14,7 +14,7 @@ class SkywardSelectScreen extends StatelessWidget {
     required this.onBack,
   });
 
-  static const int playableThrough = 7;
+  static const int playableThrough = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +50,9 @@ class SkywardSelectScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Leadstorm combines whistling lead balloons, crosswinds and floating '
-              'ribbon chains. Clear each challenge to unlock the next.',
+              'The final challenge is here! Carnival Gate combines whistling lead '
+              'balloons, crosswinds and ribbon chains. Clear all eight '
+              'levels to complete World 1.',
               style: TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 20),
@@ -78,8 +79,8 @@ class SkywardSelectScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       progress.carnivalUnlocked
-                          ? 'Carnival Gate unlocked — minigame coming later'
-                          : 'Carnival Gate — complete all eight levels to unlock',
+                          ? 'CARNIVAL GATE OPENED! World 1 complete — all eight levels cleared.'
+                          : 'Carnival Gate — clear Level 8 to open the gate and complete World 1',
                       style: const TextStyle(color: Colors.white70),
                     ),
                   ),
