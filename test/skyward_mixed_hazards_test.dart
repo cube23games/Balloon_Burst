@@ -22,7 +22,7 @@ void main() {
       });
       expect(SkywardWorldOne.level(5).hazards, {SkywardHazard.ribbonChain});
       expect(SkywardWorldOne.level(7).hazards, contains(SkywardHazard.leadBalloon));
-      expect(SkywardSelectScreen.playableThrough, 6);
+      expect(SkywardSelectScreen.playableThrough, 7);
     });
 
     test('two-second warning moves neither normal balloons nor linked pairs', () {
@@ -185,6 +185,13 @@ void main() {
     expect(selected, [6]);
     await tester.scrollUntilVisible(
       find.text('Leadstorm'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Complete the previous level'), findsWidgets,
+        reason: 'Level 6 has not been completed, so Level 7 is still locked');
+    await tester.scrollUntilVisible(
+      find.text('Carnival Gate'),
       250,
       scrollable: find.byType(Scrollable).first,
     );

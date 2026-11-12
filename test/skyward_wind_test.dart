@@ -77,7 +77,7 @@ void main() {
   });
 
   test('wind applies to Crosswind Alley; other early levels are unchanged', () {
-    expect(SkywardSelectScreen.playableThrough, 6);
+    expect(SkywardSelectScreen.playableThrough, 7);
     expect(SkywardWorldOne.level(1).hazards.contains(SkywardHazard.microburst),
         isFalse);
     expect(SkywardWorldOne.level(2).hazards.contains(SkywardHazard.microburst),
@@ -91,8 +91,8 @@ void main() {
     ]));
     expect(four.popsRequired, 24);
     expect(four.leadCatchesRequired, 2);
-    expect(SkywardSelectScreen.playableThrough < 7, isTrue,
-        reason: 'Leadstorm Level 7 is not yet implemented');
+    expect(SkywardSelectScreen.playableThrough < 8, isTrue,
+        reason: 'Carnival Gate Level 8 is not yet implemented');
   });
 
   testWidgets('HUD warns with direction and announces an active gust',
