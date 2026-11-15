@@ -1,5 +1,6 @@
 import 'package:balloon_burst/debug/debug_log.dart';
 import 'package:balloon_burst/debug/frame_gap_stats.dart';
+import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 
 /// App-level screen modes
 enum ScreenMode {
@@ -101,6 +102,7 @@ class GameState {
 
   /// Present only in debug/internal QA builds. Never serialized.
   FrameGapStats? qaFrameGapStats;
+  FlutterFrameTimingStats? qaFlutterFrameTimingStats;
 
   double maxCombinedSpeedMultiplier = 0.0;
 
@@ -141,6 +143,7 @@ class GameState {
 
     perfHitchCount = 0;
     qaFrameGapStats?.reset();
+    qaFlutterFrameTimingStats?.reset();
 
     maxCombinedSpeedMultiplier = 0.0;
 

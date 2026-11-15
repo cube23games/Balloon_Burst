@@ -56,3 +56,33 @@ This work adds QA-only diagnostics and tests. No adjustment to the engine's
 timing, physics, spawner, difficulty, effects, user progression, stars, coins,
 or playability. Keep TJ-45A on a review branch until signed CI and device
 upgrade testing pass. Do not update the protected TJ-44H tag or private backup.
+
+## Second-stage QA-only UI/raster timing
+
+The debug report now includes `qaFlutterTiming*` fields. Flutter's
+`WidgetsBinding.addTimingsCallback` reports **UI build** and **raster**
+durations in asynchronously delivered, sometimes batched frame lists.
+The new counters use no per-frame logs or growing frame history.
+
+For the 60 Hz Moto G baseline, an individual build or raster stage
+**over 16.667 ms** increments its own budget counter. Both-stage
+over-budget frames are counted once in each individual counter **and**
+once in `BothOverBudgetCount` (the overlap, not an extra frame).
+Report averages and worst values separately.
+
+The `qaFlutterTimingSampleCount` will not necessarily equal ticker
+`qaFrameGapSampleCount`, nor will over-budget counts equal hitch
+counts: separate time bases and delivery/attribution rules.
+The callback is registered only in debug/internal QA builds and removed
+on GameScreen disposal. When a run ends, pauses, or enters resume grace,
+callback delivery is ignored. Because reports are batched, frames near
+run boundaries may arrive late; do not interpret these counters as exact
+per-run frame identity. Replays reset both QA samplers.
+
+**Interpretation guidance:** If Flutter's build budget misses dominate,
+investigate UI rebuild/layout and CPU-side callbacks. If raster misses
+dominate, investigate the paint/compositing path. If both stay low
+despite many ticker gaps, inspect scheduler/system contention and
+other blocking work. None of these is proof of a particular cause
+from only one run. First compare repeated paired samples and then test
+a single bounded fix, including instrumentation-on/off overhead.
