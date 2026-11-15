@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:balloon_burst/audio/audio_player.dart';
 import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'package:balloon_burst/debug/debug_log.dart';
+import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
 import 'package:balloon_burst/engine/tier/tier_controller.dart';
@@ -122,6 +123,8 @@ class _GameScreenState extends State<GameScreen>
   int _lagForgivenessTicks = 0;
   double _perfTraceClock = 0.0;
   int _perfHitchCount = 0;
+  final FrameGapStats? _qaFrameGaps =
+      (kDebugMode || kEnableQaAutoTap) ? FrameGapStats() : null;
 
   bool _leaderboardSubmitted = false;
   DateTime? _rewardCreditedEndTime;
@@ -146,7 +149,7 @@ class _GameScreenState extends State<GameScreen>
   static const bool _tapTraceLoggingEnabled = false;
   static const bool _skipPopAudioDuringLagForgiveness = false;
   static const double _perfTraceInterval = 0.50;
-  static const double _perfHitchDt = 1.0 / 28.0;
+  static const double _perfHitchDt = FrameGapStats.hitchThresholdSeconds;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
   static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
@@ -282,6 +285,7 @@ class _GameScreenState extends State<GameScreen>
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    widget.gameState.qaFrameGapStats = _qaFrameGaps;
     widget.gameState.resetRunEvidence();
 
     widget.gameState.log(
@@ -602,6 +606,10 @@ class _GameScreenState extends State<GameScreen>
     _fps = (_fps == 0.0) ? instFps : (_fps * 0.9 + instFps * 0.1);
     _perfTraceClock += rawDt;
     final isPerfHitch = rawDt >= _perfHitchDt;
+    _qaFrameGaps?.record(
+      rawDeltaSeconds: rawDt,
+      runSeconds: widget.spawner.engineElapsedSeconds,
+    );
     if (isPerfHitch) {
       _perfHitchCount++;
     }

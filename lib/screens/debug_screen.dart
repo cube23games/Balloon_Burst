@@ -87,6 +87,7 @@ autoTapEverEnabled: ${widget.gameState.autoTapEverEnabled}
 autoTapActivationCount: ${widget.gameState.autoTapActivationCount}
 autoTapModeChangeCount: ${widget.gameState.autoTapModeChangeCount}
 performanceHitches: ${widget.gameState.perfHitchCount}
+${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
 maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}
