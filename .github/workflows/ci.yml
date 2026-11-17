@@ -39,7 +39,7 @@ jobs:
         run: |
           bash -n tools/build_apk_with_network_retry.sh
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
@@ -139,6 +139,18 @@ jobs:
             build/app/outputs/flutter-apk/app-release.apk \
             artifacts/balloon-burst-internal-qa.apk
 
+      - name: Build glow experiment QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-glow
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-glow-experiment.apk
+
       - name: Verify signatures and incrementing versionCode
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
@@ -177,17 +189,21 @@ jobs:
           }
           public="artifacts/balloon-burst-public-release.apk"
           qa="artifacts/balloon-burst-internal-qa.apk"
+          glow="artifacts/balloon-burst-internal-qa-glow-experiment.apk"
           public_cert="$(cert_sha "$public")"
           qa_cert="$(cert_sha "$qa")"
+          glow_cert="$(cert_sha "$glow")"
           public_version="$(version_code "$public")"
           qa_version="$(version_code "$qa")"
+          glow_version="$(version_code "$glow")"
 
-          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" ]]; then
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" ]]; then
             echo "::error::Public and QA signing certificates differ or are missing."
             exit 1
           fi
           if [[ "$public_version" != "$GITHUB_RUN_NUMBER" ||
-                "$qa_version" != "$GITHUB_RUN_NUMBER" ]]; then
+                "$qa_version" != "$GITHUB_RUN_NUMBER" ||
+                "$glow_version" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::APK build numbers differ or are not the CI run number."
             exit 1
           fi
@@ -204,6 +220,14 @@ jobs:
         with:
           name: balloon-burst-public-release-apk
           path: artifacts/balloon-burst-public-release.apk
+          if-no-files-found: error
+
+      - name: Upload glow experiment QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-glow-experiment-apk
+          path: artifacts/balloon-burst-internal-qa-glow-experiment.apk
           if-no-files-found: error
 
       - name: Upload internal QA APK
