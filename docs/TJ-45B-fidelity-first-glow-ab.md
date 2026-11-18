@@ -31,3 +31,27 @@ Inspect halo softness, glow radius, color, brightness and compositing.
 approximation, not an established pixel-perfect match. Require a measurable
 repeatable performance gain AND explicit owner visual acceptance before even
 considering its promotion. No merge, mirror sync or tag without approval.
+
+## Glow V2 refinement — owner direction: Aura, not fog
+
+The owner initially preferred the energy of experimental V1 but found some
+halos excessively diffuse, obscuring balloon definition like glowing fog.
+V1 is not visually accepted for production. V2 tries a **tighter halo**:
+the outer radius contracts from V1's `glowRadius + 2.2*sigma` to
+`glowRadius + 1.35*sigma`; color holds nearer the balloon and falls off
+faster beyond its outline. It is NOT guaranteed to be visually superior
+or faster. Only owner-controlled install-over device QA can establish that.
+
+The fourth, separately labeled APK is
+`balloon-burst-internal-qa-tight-aura-v2-apk` with report
+`qaGlowRenderer: tightAuraV2`, enabled by both
+`ENABLE_QA_AUTOTAP=true` and `TJ45B_GLOW_AURA_V2=true`.
+The original and V1 artifacts retain their previous flags and behavior,
+all built from one commit under the same signing key and versionCode.
+
+For visual acceptance, compare original / V1 / V2 under similar world,
+balloon color and streak (10, 20, 30, 100+), paying particular attention
+to clear balloon edges against the sky. Then compare long-run Endless
+raster-over-budget rate on alternating QA variants. Reject V2 if it loses
+visual quality or fails to deliver repeatable meaningful speed benefit.
+No gameplay changes, sound-quality downgrades or particle removal.
