@@ -19,7 +19,6 @@ class QaWindowFrameMetrics(private val window: Window) {
     private var callbackDrops = 0L
     private var worstTotalNs = 0L
     private var worstOverrunNs = 0L
-    private var lastVsyncId = 0L
     private var invalidSamples = 0L
 
     fun start(): Boolean {
@@ -33,14 +32,12 @@ class QaWindowFrameMetrics(private val window: Window) {
             val callback = Window.OnFrameMetricsAvailableListener { _, frame, dropped ->
                 val total = frame.getMetric(FrameMetrics.TOTAL_DURATION)
                 val deadline = frame.getMetric(FrameMetrics.DEADLINE)
-                val vsync = frame.getMetric(FrameMetrics.FRAME_TIMELINE_VSYNC_ID)
                 synchronized(lock) {
                     callbackDrops += dropped.coerceAtLeast(0).toLong()
                     if (total < 0L) {
                         invalidSamples++
                     } else {
                         samples++
-                        lastVsyncId = vsync
                         if (total > worstTotalNs) worstTotalNs = total
                         if (deadline > 0L) {
                             validDeadlines++
@@ -93,8 +90,7 @@ class QaWindowFrameMetrics(private val window: Window) {
                 "qaAndroidWindowFrameCallbackDropCount: $callbackDrops",
                 "qaAndroidWindowFrameInvalidSampleCount: $invalidSamples",
                 "qaAndroidWindowFrameWorstTotalMs: ${ms(worstTotalNs)}",
-                "qaAndroidWindowFrameWorstOverDeadlineMs: ${ms(worstOverrunNs)}",
-                "qaAndroidWindowFrameLastVsyncId: $lastVsyncId"
+                "qaAndroidWindowFrameWorstOverDeadlineMs: ${ms(worstOverrunNs)}"
             )
             if (samples == 0L) {
                 lines.add("qaAndroidWindowFrameNote: no-host-window-frames-observed")
@@ -110,7 +106,6 @@ class QaWindowFrameMetrics(private val window: Window) {
         callbackDrops = 0L
         worstTotalNs = 0L
         worstOverrunNs = 0L
-        lastVsyncId = 0L
         invalidSamples = 0L
     }
 
