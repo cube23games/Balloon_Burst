@@ -13,6 +13,7 @@ import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
+import 'package:balloon_burst/debug/qa_android_window_frames.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
 import 'package:balloon_burst/engine/tier/tier_controller.dart';
@@ -327,6 +328,7 @@ class _GameScreenState extends State<GameScreen>
     widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
     widget.gameState.qaFramePhaseSlowStats = _qaPhaseStats;
     widget.gameState.resetRunEvidence();
+    unawaited(QaAndroidWindowFrames.start());
     if (_qaFlutterTimings != null) {
       WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);
     }
@@ -1567,6 +1569,7 @@ class _GameScreenState extends State<GameScreen>
       WidgetsBinding.instance.removeTimingsCallback(_onFlutterTimings);
     }
     _nativeLifecycleChannel.setMethodCallHandler(null);
+    unawaited(QaAndroidWindowFrames.stop());
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     WidgetsBinding.instance.removeObserver(this);
     _shieldFlashTimer?.cancel();
