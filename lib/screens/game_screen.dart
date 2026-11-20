@@ -12,6 +12,7 @@ import 'package:balloon_burst/debug/debug_log.dart';
 import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
+import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
 import 'package:balloon_burst/engine/tier/tier_controller.dart';
@@ -134,6 +135,11 @@ class _GameScreenState extends State<GameScreen>
       FramePacingDiagnosticFlags.enabled ? GameUpdateTimingStats() : null;
   final Stopwatch? _qaUpdateClock =
       FramePacingDiagnosticFlags.enabled ? (Stopwatch()..start()) : null;
+  // Special QA only. No phase sampling in public, normal QA or TJ-45D control.
+  static const bool _enablePhaseStudy = FramePacingDiagnosticFlags.enabled &&
+      bool.fromEnvironment('TJ45E_FRAME_PHASES', defaultValue: false);
+  final FramePhaseSlowStats? _qaPhaseStats =
+      _enablePhaseStudy ? FramePhaseSlowStats() : null;
 
   bool _leaderboardSubmitted = false;
   DateTime? _rewardCreditedEndTime;
@@ -198,6 +204,7 @@ class _GameScreenState extends State<GameScreen>
             ? timing.totalSpan
             : null,
       );
+      _qaPhaseStats?.record(timing);
     }
   }
 
@@ -318,6 +325,7 @@ class _GameScreenState extends State<GameScreen>
     widget.gameState.qaFrameGapStats = _qaFrameGaps;
     widget.gameState.qaFlutterFrameTimingStats = _qaFlutterTimings;
     widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
+    widget.gameState.qaFramePhaseSlowStats = _qaPhaseStats;
     widget.gameState.resetRunEvidence();
     if (_qaFlutterTimings != null) {
       WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);

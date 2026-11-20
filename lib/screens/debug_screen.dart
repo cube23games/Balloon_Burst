@@ -93,6 +93,7 @@ qaGlowRenderer: ${QaTightAuraGlow.enabled ? QaTightAuraGlow.variant : QaGradient
 ${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
 ${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
+${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
 maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}
