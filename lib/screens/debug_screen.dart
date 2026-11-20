@@ -10,6 +10,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:balloon_burst/debug/debug_controller.dart'; // kept for compatibility with AppRoot
 import 'package:balloon_burst/debug/debug_log.dart';
 import 'package:balloon_burst/game/game_state.dart';
+import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
+import 'package:balloon_burst/game/qa_tight_aura_glow.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
 
 class DebugScreen extends StatefulWidget {
@@ -87,6 +89,10 @@ autoTapEverEnabled: ${widget.gameState.autoTapEverEnabled}
 autoTapActivationCount: ${widget.gameState.autoTapActivationCount}
 autoTapModeChangeCount: ${widget.gameState.autoTapModeChangeCount}
 performanceHitches: ${widget.gameState.perfHitchCount}
+qaGlowRenderer: ${QaTightAuraGlow.enabled ? QaTightAuraGlow.variant : QaGradientBalloonGlow.variant}
+${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
+${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
+${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
 maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}

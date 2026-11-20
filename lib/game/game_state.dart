@@ -1,4 +1,7 @@
 import 'package:balloon_burst/debug/debug_log.dart';
+import 'package:balloon_burst/debug/frame_gap_stats.dart';
+import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
+import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 
 /// App-level screen modes
 enum ScreenMode {
@@ -98,6 +101,11 @@ class GameState {
 
   int perfHitchCount = 0;
 
+  /// Present only in debug/internal QA builds. Never serialized.
+  FrameGapStats? qaFrameGapStats;
+  FlutterFrameTimingStats? qaFlutterFrameTimingStats;
+  GameUpdateTimingStats? qaGameUpdateTimingStats;
+
   double maxCombinedSpeedMultiplier = 0.0;
 
   double minimumEffectiveSpawnInterval =
@@ -136,6 +144,9 @@ class GameState {
     revivesUsed = 0;
 
     perfHitchCount = 0;
+    qaFrameGapStats?.reset();
+    qaFlutterFrameTimingStats?.reset();
+    qaGameUpdateTimingStats?.reset();
 
     maxCombinedSpeedMultiplier = 0.0;
 
