@@ -11,6 +11,7 @@ import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'package:balloon_burst/debug/debug_log.dart';
 import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
+import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
 import 'package:balloon_burst/engine/tier/tier_controller.dart';
@@ -129,6 +130,10 @@ class _GameScreenState extends State<GameScreen>
       (kDebugMode || kEnableQaAutoTap) ? FrameGapStats() : null;
   final FlutterFrameTimingStats? _qaFlutterTimings =
       (kDebugMode || kEnableQaAutoTap) ? FlutterFrameTimingStats() : null;
+  final GameUpdateTimingStats? _qaGameUpdateTimings =
+      FramePacingDiagnosticFlags.enabled ? GameUpdateTimingStats() : null;
+  final Stopwatch? _qaUpdateClock =
+      FramePacingDiagnosticFlags.enabled ? (Stopwatch()..start()) : null;
 
   bool _leaderboardSubmitted = false;
   DateTime? _rewardCreditedEndTime;
@@ -186,6 +191,12 @@ class _GameScreenState extends State<GameScreen>
       stats.record(
         buildDuration: timing.buildDuration,
         rasterDuration: timing.rasterDuration,
+        vsyncOverhead: FramePacingDiagnosticFlags.enabled
+            ? timing.vsyncOverhead
+            : null,
+        totalSpan: FramePacingDiagnosticFlags.enabled
+            ? timing.totalSpan
+            : null,
       );
     }
   }
@@ -306,6 +317,7 @@ class _GameScreenState extends State<GameScreen>
 
     widget.gameState.qaFrameGapStats = _qaFrameGaps;
     widget.gameState.qaFlutterFrameTimingStats = _qaFlutterTimings;
+    widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
     widget.gameState.resetRunEvidence();
     if (_qaFlutterTimings != null) {
       WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);
@@ -638,6 +650,9 @@ class _GameScreenState extends State<GameScreen>
     }
     widget.gameState.viewportHeight = _lastSize.height;
 
+    // Monotonic wall time of this tick's synchronous game update only.
+    // The preceding ticker gap is a separate clock; do not infer causality.
+    final updateStartUs = _qaUpdateClock?.elapsedMicroseconds;
     widget.engine.update(dt);
 
     final shieldNow =
@@ -1006,6 +1021,12 @@ class _GameScreenState extends State<GameScreen>
       }
     }
 
+    if (updateStartUs != null) {
+      _qaGameUpdateTimings?.record(
+        durationMicros: _qaUpdateClock!.elapsedMicroseconds - updateStartUs,
+        precedingTickerHitch: isPerfHitch,
+      );
+    }
     setState(() {});
   }
 

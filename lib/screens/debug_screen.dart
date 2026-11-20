@@ -92,6 +92,7 @@ performanceHitches: ${widget.gameState.perfHitchCount}
 qaGlowRenderer: ${QaTightAuraGlow.enabled ? QaTightAuraGlow.variant : QaGradientBalloonGlow.variant}
 ${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
 ${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
+${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
 maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}

@@ -65,6 +65,52 @@ void main() {
       expect(stats.reportFields, contains('qaFlutterTimingSampleCount: 0'));
     });
 
+    test('TJ-45D VSync overhead and total span are independently measured', () {
+      final stats = FlutterFrameTimingStats();
+      stats.record(
+        buildDuration: const Duration(microseconds: 4000),
+        rasterDuration: const Duration(microseconds: 8000),
+        vsyncOverhead: const Duration(microseconds: 18000),
+        totalSpan: const Duration(microseconds: 32000),
+      );
+      stats.record(
+        buildDuration: const Duration(microseconds: 3000),
+        rasterDuration: const Duration(microseconds: 7000),
+        vsyncOverhead: const Duration(microseconds: 2000),
+        totalSpan: const Duration(microseconds: 12000),
+      );
+      expect(stats.samples, 2);
+      expect(stats.vsyncSamples, 2);
+      expect(stats.totalSpanSamples, 2);
+      expect(stats.buildOverBudget, 0);
+      expect(stats.rasterOverBudget, 0);
+      expect(stats.vsyncOverBudget, 1);
+      expect(stats.totalSpanOverBudget, 1);
+      expect(stats.averageVsyncMs, 10.0);
+      expect(stats.averageTotalSpanMs, 22.0);
+      expect(stats.worstVsyncMicros, 18000);
+      expect(stats.worstTotalSpanMicros, 32000);
+      expect(stats.reportFields,
+          contains('qaFlutterTimingVsyncOverBudgetCount: 1'));
+      expect(stats.reportFields,
+          contains('qaFlutterTimingTotalSpanOverBudgetCount: 1'));
+      stats.reset();
+      expect(stats.vsyncSamples, 0);
+      expect(stats.totalSpanSamples, 0);
+      expect(stats.averageVsyncMs, 0);
+      expect(stats.averageTotalSpanMs, 0);
+    });
+
+    test('non-diagnostic QA leaves extended fields absent', () {
+      final stats = FlutterFrameTimingStats();
+      stats.record(
+        buildDuration: const Duration(microseconds: 3000),
+        rasterDuration: const Duration(microseconds: 7000),
+      );
+      expect(stats.reportFields, isNot(contains('qaFlutterTimingVsync')));
+      expect(stats.reportFields, isNot(contains('qaFlutterTimingTotalSpan')));
+    });
+
     test('reset isolates later replay', () {
       final stats = FlutterFrameTimingStats();
       stats.record(
