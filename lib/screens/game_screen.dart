@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show FrameTiming;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,10 @@ import 'package:flutter/services.dart';
 import 'package:balloon_burst/audio/audio_player.dart';
 import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'package:balloon_burst/debug/debug_log.dart';
+import 'package:balloon_burst/debug/frame_gap_stats.dart';
+import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
+import 'package:balloon_burst/debug/game_update_timing_stats.dart';
+import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
 import 'package:balloon_burst/engine/tier/tier_controller.dart';
@@ -122,6 +127,19 @@ class _GameScreenState extends State<GameScreen>
   int _lagForgivenessTicks = 0;
   double _perfTraceClock = 0.0;
   int _perfHitchCount = 0;
+  final FrameGapStats? _qaFrameGaps =
+      (kDebugMode || kEnableQaAutoTap) ? FrameGapStats() : null;
+  final FlutterFrameTimingStats? _qaFlutterTimings =
+      (kDebugMode || kEnableQaAutoTap) ? FlutterFrameTimingStats() : null;
+  final GameUpdateTimingStats? _qaGameUpdateTimings =
+      FramePacingDiagnosticFlags.enabled ? GameUpdateTimingStats() : null;
+  final Stopwatch? _qaUpdateClock =
+      FramePacingDiagnosticFlags.enabled ? (Stopwatch()..start()) : null;
+  // Special QA only. No phase sampling in public, normal QA or TJ-45D control.
+  static const bool _enablePhaseStudy = FramePacingDiagnosticFlags.enabled &&
+      bool.fromEnvironment('TJ45E_FRAME_PHASES', defaultValue: false);
+  final FramePhaseSlowStats? _qaPhaseStats =
+      _enablePhaseStudy ? FramePhaseSlowStats() : null;
 
   bool _leaderboardSubmitted = false;
   DateTime? _rewardCreditedEndTime;
@@ -146,7 +164,7 @@ class _GameScreenState extends State<GameScreen>
   static const bool _tapTraceLoggingEnabled = false;
   static const bool _skipPopAudioDuringLagForgiveness = false;
   static const double _perfTraceInterval = 0.50;
-  static const double _perfHitchDt = 1.0 / 28.0;
+  static const double _perfHitchDt = FrameGapStats.hitchThresholdSeconds;
   static const Duration _mercyWindow = Duration(milliseconds: 120);
   static const Duration _resumeGraceDuration = Duration(milliseconds: 2500);
 
@@ -167,6 +185,28 @@ class _GameScreenState extends State<GameScreen>
 
   double get _effectiveHitForgiveness =>
       _lagForgivenessTicks > 0 ? _lagHitForgiveness : hitForgiveness;
+
+  /// Flutter engine frame timings arrive asynchronously in small batches.
+  /// These counters are independent of game ticker callback-gap counters.
+  void _onFlutterTimings(List<FrameTiming> timings) {
+    final stats = _qaFlutterTimings;
+    if (stats == null || _isRunEnded || _isLifecyclePaused ||
+        _resumeGraceUntil != null) return;
+
+    for (final timing in timings) {
+      stats.record(
+        buildDuration: timing.buildDuration,
+        rasterDuration: timing.rasterDuration,
+        vsyncOverhead: FramePacingDiagnosticFlags.enabled
+            ? timing.vsyncOverhead
+            : null,
+        totalSpan: FramePacingDiagnosticFlags.enabled
+            ? timing.totalSpan
+            : null,
+      );
+      _qaPhaseStats?.record(timing);
+    }
+  }
 
   void _logPerfTrace({
     required String label,
@@ -282,7 +322,14 @@ class _GameScreenState extends State<GameScreen>
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    widget.gameState.qaFrameGapStats = _qaFrameGaps;
+    widget.gameState.qaFlutterFrameTimingStats = _qaFlutterTimings;
+    widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
+    widget.gameState.qaFramePhaseSlowStats = _qaPhaseStats;
     widget.gameState.resetRunEvidence();
+    if (_qaFlutterTimings != null) {
+      WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);
+    }
 
     widget.gameState.log(
       'SYSTEM: GAME WIRED',
@@ -602,11 +649,18 @@ class _GameScreenState extends State<GameScreen>
     _fps = (_fps == 0.0) ? instFps : (_fps * 0.9 + instFps * 0.1);
     _perfTraceClock += rawDt;
     final isPerfHitch = rawDt >= _perfHitchDt;
+    _qaFrameGaps?.record(
+      rawDeltaSeconds: rawDt,
+      runSeconds: widget.spawner.engineElapsedSeconds,
+    );
     if (isPerfHitch) {
       _perfHitchCount++;
     }
     widget.gameState.viewportHeight = _lastSize.height;
 
+    // Monotonic wall time of this tick's synchronous game update only.
+    // The preceding ticker gap is a separate clock; do not infer causality.
+    final updateStartUs = _qaUpdateClock?.elapsedMicroseconds;
     widget.engine.update(dt);
 
     final shieldNow =
@@ -975,6 +1029,12 @@ class _GameScreenState extends State<GameScreen>
       }
     }
 
+    if (updateStartUs != null) {
+      _qaGameUpdateTimings?.record(
+        durationMicros: _qaUpdateClock!.elapsedMicroseconds - updateStartUs,
+        precedingTickerHitch: isPerfHitch,
+      );
+    }
     setState(() {});
   }
 
@@ -1503,6 +1563,9 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    if (_qaFlutterTimings != null) {
+      WidgetsBinding.instance.removeTimingsCallback(_onFlutterTimings);
+    }
     _nativeLifecycleChannel.setMethodCallHandler(null);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     WidgetsBinding.instance.removeObserver(this);

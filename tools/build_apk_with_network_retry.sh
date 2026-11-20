@@ -4,11 +4,11 @@
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
-  echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa" >&2
+  echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa|qa-glow|qa-aura-v2|qa-frame-diag|qa-frame-phases" >&2
   exit 64
 fi
-if [[ "$1" != public && "$1" != qa ]]; then
-  echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa" >&2
+if [[ "$1" != public && "$1" != qa && "$1" != qa-glow && "$1" != qa-aura-v2 && "$1" != qa-frame-diag && "$1" != qa-frame-phases ]]; then
+  echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa|qa-glow|qa-aura-v2|qa-frame-diag|qa-frame-phases" >&2
   exit 64
 fi
 
@@ -16,8 +16,20 @@ mode="$1"
 : "${GITHUB_RUN_NUMBER:?A CI run number is required for monotonically increasing APK versionCode}"
 
 command=(flutter build apk --release "--build-number=$GITHUB_RUN_NUMBER")
-if [[ "$mode" == qa ]]; then
+if [[ "$mode" == qa || "$mode" == qa-glow || "$mode" == qa-aura-v2 || "$mode" == qa-frame-diag || "$mode" == qa-frame-phases ]]; then
   command+=(--dart-define=ENABLE_QA_AUTOTAP=true)
+fi
+if [[ "$mode" == qa-glow ]]; then
+  command+=(--dart-define=TJ45B_GLOW_GRADIENT=true)
+fi
+if [[ "$mode" == qa-aura-v2 || "$mode" == qa-frame-diag || "$mode" == qa-frame-phases ]]; then
+  command+=(--dart-define=TJ45B_GLOW_AURA_V2=true)
+fi
+if [[ "$mode" == qa-frame-diag || "$mode" == qa-frame-phases ]]; then
+  command+=(--dart-define=TJ45D_FRAME_DIAG=true)
+fi
+if [[ "$mode" == qa-frame-phases ]]; then
+  command+=(--dart-define=TJ45E_FRAME_PHASES=true)
 fi
 
 # Avoid logging keystore passwords: Flutter receives them only through the
