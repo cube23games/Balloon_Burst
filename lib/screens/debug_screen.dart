@@ -13,6 +13,7 @@ import 'package:balloon_burst/game/game_state.dart';
 import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
 import 'package:balloon_burst/game/qa_tight_aura_glow.dart';
 import 'package:balloon_burst/debug/qa_android_window_frames.dart';
+import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
 
 class DebugScreen extends StatefulWidget {
@@ -95,6 +96,7 @@ ${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
 ${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
+${widget.gameState.qaUiBuildStats?.reportFields ?? ''}
 $androidFrameInfo
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
@@ -149,6 +151,9 @@ ${rawLogs.join('\n')}
 
   @override
   Widget build(BuildContext context) {
+    final uiStats = widget.gameState.qaUiBuildStats;
+    final started = uiStats?.begin(QaUiBuildStage.debugHud);
+    try {
     // Authoritative logs now come from GameState -> DebugLog
     final rawLogs = widget.gameState.debugLogs;
     final logs = rawLogs.reversed
@@ -332,5 +337,8 @@ ${rawLogs.join('\n')}
         ],
       ),
     );
+    } finally {
+      if (started != null) uiStats!.end(QaUiBuildStage.debugHud, started);
+    }
   }
 }

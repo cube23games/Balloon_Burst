@@ -13,6 +13,7 @@ import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
+import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
 import 'package:balloon_burst/debug/qa_android_window_frames.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
@@ -1657,11 +1658,16 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   Widget build(BuildContext context) {
+    final uiStats = widget.gameState.qaUiBuildStats;
+    final scaffoldStart = uiStats?.begin(QaUiBuildStage.gameScaffold);
+    try {
     final summary = widget.engine.runLifecycle.latestSummary;
 
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
+          final layoutStart = uiStats?.begin(QaUiBuildStage.gameLayout);
+          try {
           _lastSize = constraints.biggest;
 
           final currentWorld = widget.spawner.currentWorld;
@@ -1919,9 +1925,19 @@ class _GameScreenState extends State<GameScreen>
               ),
             ],
           );
+          } finally {
+            if (layoutStart != null) {
+              uiStats!.end(QaUiBuildStage.gameLayout, layoutStart);
+            }
+          }
         },
       ),
     );
+    } finally {
+      if (scaffoldStart != null) {
+        uiStats!.end(QaUiBuildStage.gameScaffold, scaffoldStart);
+      }
+    }
   }
 
   Color _backgroundForWorld(int world) {

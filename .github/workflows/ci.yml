@@ -39,7 +39,7 @@ jobs:
         run: |
           bash -n tools/build_apk_with_network_retry.sh
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart test/qa_ui_build_stats_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
@@ -199,6 +199,18 @@ jobs:
           bash tools/build_apk_with_network_retry.sh qa-android-presentation
           cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-android-presentation.apk
 
+      - name: Build UI-build and navigation diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-ui-build
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-ui-build.apk
+
       - name: Verify signatures and incrementing versionCode
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
@@ -242,6 +254,7 @@ jobs:
           diag="artifacts/balloon-burst-internal-qa-frame-pacing.apk"
           phases="artifacts/balloon-burst-internal-qa-frame-phases.apk"
           androidp="artifacts/balloon-burst-internal-qa-android-presentation.apk"
+          uibuild="artifacts/balloon-burst-internal-qa-ui-build.apk"
           public_cert="$(cert_sha "$public")"
           qa_cert="$(cert_sha "$qa")"
           glow_cert="$(cert_sha "$glow")"
@@ -249,6 +262,7 @@ jobs:
           diag_cert="$(cert_sha "$diag")"
           phases_cert="$(cert_sha "$phases")"
           androidp_cert="$(cert_sha "$androidp")"
+          uibuild_cert="$(cert_sha "$uibuild")"
           public_version="$(version_code "$public")"
           qa_version="$(version_code "$qa")"
           glow_version="$(version_code "$glow")"
@@ -256,8 +270,9 @@ jobs:
           diag_version="$(version_code "$diag")"
           phases_version="$(version_code "$phases")"
           androidp_version="$(version_code "$androidp")"
+          uibuild_version="$(version_code "$uibuild")"
 
-          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" ]]; then
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" ]]; then
             echo "::error::Public and QA signing certificates differ or are missing."
             exit 1
           fi
@@ -267,7 +282,8 @@ jobs:
                 "$aura_version" != "$GITHUB_RUN_NUMBER" ||
                 "$diag_version" != "$GITHUB_RUN_NUMBER" ||
                 "$phases_version" != "$GITHUB_RUN_NUMBER" ||
-                "$androidp_version" != "$GITHUB_RUN_NUMBER" ]]; then
+                "$androidp_version" != "$GITHUB_RUN_NUMBER" ||
+                "$uibuild_version" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::APK build numbers differ or are not the CI run number."
             exit 1
           fi
@@ -324,6 +340,14 @@ jobs:
         with:
           name: balloon-burst-internal-qa-android-presentation-apk
           path: artifacts/balloon-burst-internal-qa-android-presentation.apk
+          if-no-files-found: error
+
+      - name: Upload UI-build and navigation diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-ui-build-apk
+          path: artifacts/balloon-burst-internal-qa-ui-build.apk
           if-no-files-found: error
 
       - name: Upload internal QA APK

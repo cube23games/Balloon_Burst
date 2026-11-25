@@ -3,6 +3,7 @@ import 'package:balloon_burst/debug/frame_gap_stats.dart';
 import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
+import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
 
 /// App-level screen modes
 enum ScreenMode {
@@ -107,6 +108,7 @@ class GameState {
   FlutterFrameTimingStats? qaFlutterFrameTimingStats;
   GameUpdateTimingStats? qaGameUpdateTimingStats;
   FramePhaseSlowStats? qaFramePhaseSlowStats;
+  QaUiBuildStats? qaUiBuildStats;
 
   double maxCombinedSpeedMultiplier = 0.0;
 
@@ -150,6 +152,7 @@ class GameState {
     qaFlutterFrameTimingStats?.reset();
     qaGameUpdateTimingStats?.reset();
     qaFramePhaseSlowStats?.reset();
+    qaUiBuildStats?.reset();
 
     maxCombinedSpeedMultiplier = 0.0;
 
