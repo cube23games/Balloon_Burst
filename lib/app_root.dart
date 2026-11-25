@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:balloon_burst/debug/debug_controller.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
 import 'package:balloon_burst/game/game_state.dart';
+import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
 import 'package:balloon_burst/screens/debug_screen.dart';
 import 'package:balloon_burst/screens/game_screen.dart';
 import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
@@ -35,13 +36,35 @@ class _AppRootState extends State<AppRoot> {
   final BalloonSpawner _spawner = BalloonSpawner();
   final DebugController _debug = DebugController();
 
+  @override
+  void initState() {
+    super.initState();
+    if (QaUiBuildFlags.enabled) {
+      _gameState.qaUiBuildStats = QaUiBuildStats();
+    }
+  }
+
   void _openDebug() {
+    final stats = _gameState.qaUiBuildStats;
+    if (stats != null) {
+      stats.navigationRequest(opening: true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        stats.navigationPostFrame(opening: true);
+      });
+    }
     setState(() {
       _gameState.screenMode = ScreenMode.debug;
     });
   }
 
   void _closeDebug() {
+    final stats = _gameState.qaUiBuildStats;
+    if (stats != null) {
+      stats.navigationRequest(opening: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        stats.navigationPostFrame(opening: false);
+      });
+    }
     setState(() {
       _gameState.screenMode = ScreenMode.game;
     });
@@ -49,6 +72,9 @@ class _AppRootState extends State<AppRoot> {
 
   @override
   Widget build(BuildContext context) {
+    final stats = _gameState.qaUiBuildStats;
+    final started = stats?.begin(QaUiBuildStage.appRoot);
+    try {
     final showDebug = _gameState.screenMode == ScreenMode.debug;
 
     return Stack(
@@ -78,5 +104,8 @@ class _AppRootState extends State<AppRoot> {
           ),
       ],
     );
+    } finally {
+      if (started != null) stats!.end(QaUiBuildStage.appRoot, started);
+    }
   }
 }
