@@ -14,6 +14,7 @@ import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
 import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
+import 'package:balloon_burst/debug/qa_frame_scheduler_stats.dart';
 import 'package:balloon_burst/debug/qa_android_window_frames.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
@@ -142,6 +143,8 @@ class _GameScreenState extends State<GameScreen>
       bool.fromEnvironment('TJ45E_FRAME_PHASES', defaultValue: false);
   final FramePhaseSlowStats? _qaPhaseStats =
       _enablePhaseStudy ? FramePhaseSlowStats() : null;
+  final QaFrameSchedulerStats? _qaSchedulerStats =
+      QaFrameSchedulerFlags.enabled ? QaFrameSchedulerStats() : null;
 
   bool _leaderboardSubmitted = false;
   DateTime? _rewardCreditedEndTime;
@@ -328,6 +331,7 @@ class _GameScreenState extends State<GameScreen>
     widget.gameState.qaFlutterFrameTimingStats = _qaFlutterTimings;
     widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
     widget.gameState.qaFramePhaseSlowStats = _qaPhaseStats;
+    widget.gameState.qaFrameSchedulerStats = _qaSchedulerStats;
     widget.gameState.resetRunEvidence();
     unawaited(QaAndroidWindowFrames.start());
     if (_qaFlutterTimings != null) {
@@ -492,6 +496,7 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
+    _qaSchedulerStats?.markLifecycle('nativePause');
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = true;
     _resumeGraceUntil = null;
@@ -524,6 +529,7 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
 
+    _qaSchedulerStats?.markLifecycle('flutterPause');
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = showOverlayImmediately;
     _resumeGraceUntil = null;
@@ -549,6 +555,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final shouldUseGrace = _showLifecyclePauseOverlay;
+    _qaSchedulerStats?.markLifecycle('resumeGraceOrSilent');
 
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
@@ -573,6 +580,7 @@ class _GameScreenState extends State<GameScreen>
   void _resumeFromNativeLifecycleSilently() {
     if (_isRunEnded) return;
 
+    _qaSchedulerStats?.markLifecycle('nativeSilentResume');
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
     _resumeGraceUntil = null;
@@ -637,6 +645,29 @@ class _GameScreenState extends State<GameScreen>
     final rawDt = (_lastTime == Duration.zero)
         ? 0.016
         : (elapsed - _lastTime).inMicroseconds / 1e6;
+
+    // TJ-45H observes this existing Ticker callback without scheduling
+    // additional frames or changing frame pacing.
+    final schedulerStats = _qaSchedulerStats;
+    if (schedulerStats != null) {
+      final scheduler = SchedulerBinding.instance;
+      final sample = schedulerStats.recordTick(
+        tickerElapsedUs: elapsed.inMicroseconds,
+        engineFrameStampUs: scheduler.currentSystemFrameTimeStamp.inMicroseconds,
+        wallStampUs: schedulerStats.clockUs,
+        transientPhase: scheduler.schedulerPhase == SchedulerPhase.transientCallbacks,
+        debugVisible: widget.gameState.screenMode == ScreenMode.debug,
+      );
+      if (sample != null) {
+        scheduler.addPostFrameCallback((_) {
+          if (!mounted) return;
+          schedulerStats.recordPostFrame(
+            sample, schedulerStats.clockUs,
+            scheduler.currentSystemFrameTimeStamp.inMicroseconds,
+          );
+        });
+      }
+    }
 
     _lastTime = elapsed;
 

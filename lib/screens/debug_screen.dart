@@ -97,6 +97,7 @@ ${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
 ${widget.gameState.qaUiBuildStats?.reportFields ?? ''}
+${widget.gameState.qaFrameSchedulerStats?.reportFields ?? ''}
 $androidFrameInfo
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
