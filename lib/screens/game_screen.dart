@@ -15,6 +15,8 @@ import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
 import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
 import 'package:balloon_burst/debug/qa_frame_scheduler_stats.dart';
+import 'package:balloon_burst/debug/qa_frame_request_binding.dart';
+import 'package:balloon_burst/debug/qa_frame_request_stats.dart';
 import 'package:balloon_burst/debug/qa_android_window_frames.dart';
 import 'package:balloon_burst/engine/momentum/momentum_controller.dart';
 import 'package:balloon_burst/engine/speed/speed_curve.dart';
@@ -333,6 +335,12 @@ class _GameScreenState extends State<GameScreen>
     widget.gameState.qaFramePhaseSlowStats = _qaPhaseStats;
     widget.gameState.qaFrameSchedulerStats = _qaSchedulerStats;
     widget.gameState.resetRunEvidence();
+    final frameRequestProbe = QaFrameRequestBinding.active;
+    if (frameRequestProbe != null) {
+      frameRequestProbe.stats.reset();
+      // One QA-only native clock-anchor request per run. No per-frame IPC.
+      unawaited(_sampleNativeFrameClock(frameRequestProbe.stats));
+    }
     unawaited(QaAndroidWindowFrames.start());
     if (_qaFlutterTimings != null) {
       WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);
@@ -385,6 +393,29 @@ class _GameScreenState extends State<GameScreen>
     ]).animate(_walletPulse);
 
     _ticker = createTicker(_onTick)..start();
+  }
+
+  Future<void> _sampleNativeFrameClock(QaFrameRequestStats stats) async {
+    final before = stats.clockUs;
+    try {
+      final anchor = await _nativeLifecycleChannel.invokeMapMethod<String, dynamic>(
+        'getQaFrameClockAnchor',
+      );
+      final after = stats.clockUs;
+      if (!mounted || anchor == null) return;
+      final monotonic = anchor['monotonicNs'];
+      final boottime = anchor['boottimeNs'];
+      if (monotonic is int && boottime is int) {
+        stats.recordClockAnchor(
+          dartBeforeUs: before,
+          dartAfterUs: after,
+          nativeMonotonicNs: monotonic,
+          nativeBoottimeNs: boottime,
+        );
+      }
+    } catch (_) {
+      // The report exposes a missing anchor, without impacting gameplay.
+    }
   }
 
   void _triggerShieldBreakFeedback() {
@@ -497,6 +528,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _qaSchedulerStats?.markLifecycle('nativePause');
+    QaFrameRequestBinding.active?.stats.markLifecycle();
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = true;
     _resumeGraceUntil = null;
@@ -530,6 +562,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _qaSchedulerStats?.markLifecycle('flutterPause');
+    QaFrameRequestBinding.active?.stats.markLifecycle();
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = showOverlayImmediately;
     _resumeGraceUntil = null;
@@ -556,6 +589,7 @@ class _GameScreenState extends State<GameScreen>
 
     final shouldUseGrace = _showLifecyclePauseOverlay;
     _qaSchedulerStats?.markLifecycle('resumeGraceOrSilent');
+    QaFrameRequestBinding.active?.stats.markLifecycle();
 
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
@@ -581,6 +615,7 @@ class _GameScreenState extends State<GameScreen>
     if (_isRunEnded) return;
 
     _qaSchedulerStats?.markLifecycle('nativeSilentResume');
+    QaFrameRequestBinding.active?.stats.markLifecycle();
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
     _resumeGraceUntil = null;
@@ -651,13 +686,24 @@ class _GameScreenState extends State<GameScreen>
     final schedulerStats = _qaSchedulerStats;
     if (schedulerStats != null) {
       final scheduler = SchedulerBinding.instance;
+      final rawStampUs =
+          scheduler.currentSystemFrameTimeStamp.inMicroseconds;
       final sample = schedulerStats.recordTick(
         tickerElapsedUs: elapsed.inMicroseconds,
-        engineFrameStampUs: scheduler.currentSystemFrameTimeStamp.inMicroseconds,
+        engineFrameStampUs: rawStampUs,
         wallStampUs: schedulerStats.clockUs,
         transientPhase: scheduler.schedulerPhase == SchedulerPhase.transientCallbacks,
         debugVisible: widget.gameState.screenMode == ScreenMode.debug,
       );
+      // Same existing callback, same frame ID, no extra scheduling.
+      final frameProbe = QaFrameRequestBinding.active;
+      if (frameProbe != null) {
+        frameProbe.stats.recordTicker(
+          tickerSample: schedulerStats.tickSamples,
+          wallUs: frameProbe.stats.clockUs,
+          rawStampUs: rawStampUs,
+        );
+      }
       if (sample != null) {
         scheduler.addPostFrameCallback((_) {
           if (!mounted) return;

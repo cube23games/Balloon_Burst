@@ -14,6 +14,7 @@ import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
 import 'package:balloon_burst/game/qa_tight_aura_glow.dart';
 import 'package:balloon_burst/debug/qa_android_window_frames.dart';
 import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
+import 'package:balloon_burst/debug/qa_frame_request_binding.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
 
 class DebugScreen extends StatefulWidget {
@@ -98,6 +99,7 @@ ${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
 ${widget.gameState.qaUiBuildStats?.reportFields ?? ''}
 ${widget.gameState.qaFrameSchedulerStats?.reportFields ?? ''}
+${QaFrameRequestBinding.active?.stats.reportFields ?? ''}
 $androidFrameInfo
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}

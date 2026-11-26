@@ -47,6 +47,14 @@ class MainActivity : FlutterActivity() {
         lifecycleChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getDeviceDiagnostics" -> result.success(buildDeviceDiagnostics())
+                "getQaFrameClockAnchor" -> result.success(
+                    mapOf(
+                        // System.nanoTime is the native monotonic-clock anchor.
+                        // elapsedRealtimeNanos uses the boot-time clock.
+                        "monotonicNs" to System.nanoTime(),
+                        "boottimeNs" to SystemClock.elapsedRealtimeNanos()
+                    )
+                )
                 else -> result.notImplemented()
             }
         }

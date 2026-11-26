@@ -39,7 +39,7 @@ jobs:
         run: |
           bash -n tools/build_apk_with_network_retry.sh
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart test/qa_ui_build_stats_test.dart test/qa_frame_scheduler_stats_test.dart test/qa_wall_clock_correlation_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart test/qa_ui_build_stats_test.dart test/qa_frame_scheduler_stats_test.dart test/qa_wall_clock_correlation_test.dart test/qa_frame_request_stats_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
@@ -235,6 +235,18 @@ jobs:
           bash tools/build_apk_with_network_retry.sh qa-wall-clock
           cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-wall-clock.apk
 
+      - name: Build framework frame-request correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-frame-request
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-frame-request.apk
+
       - name: Verify signatures and incrementing versionCode
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
@@ -281,6 +293,7 @@ jobs:
           uibuild="artifacts/balloon-burst-internal-qa-ui-build.apk"
           scheduler="artifacts/balloon-burst-internal-qa-frame-scheduler.apk"
           wall="artifacts/balloon-burst-internal-qa-wall-clock.apk"
+          frame_request="artifacts/balloon-burst-internal-qa-frame-request.apk"
           public_cert="$(cert_sha "$public")"
           qa_cert="$(cert_sha "$qa")"
           glow_cert="$(cert_sha "$glow")"
@@ -291,6 +304,7 @@ jobs:
           uibuild_cert="$(cert_sha "$uibuild")"
           scheduler_cert="$(cert_sha "$scheduler")"
           wall_cert="$(cert_sha "$wall")"
+          frame_request_cert="$(cert_sha "$frame_request")"
           public_version="$(version_code "$public")"
           qa_version="$(version_code "$qa")"
           glow_version="$(version_code "$glow")"
@@ -301,8 +315,9 @@ jobs:
           uibuild_version="$(version_code "$uibuild")"
           scheduler_version="$(version_code "$scheduler")"
           wall_version="$(version_code "$wall")"
+          frame_request_version="$(version_code "$frame_request")"
 
-          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" || "$public_cert" != "$scheduler_cert" || "$public_cert" != "$wall_cert" ]]; then
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" || "$public_cert" != "$scheduler_cert" || "$public_cert" != "$wall_cert" || "$public_cert" != "$frame_request_cert" ]]; then
             echo "::error::Public and QA signing certificates differ or are missing."
             exit 1
           fi
@@ -315,7 +330,8 @@ jobs:
                 "$androidp_version" != "$GITHUB_RUN_NUMBER" ||
                 "$uibuild_version" != "$GITHUB_RUN_NUMBER" ||
                 "$scheduler_version" != "$GITHUB_RUN_NUMBER" ||
-                "$wall_version" != "$GITHUB_RUN_NUMBER" ]]; then
+                "$wall_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$frame_request_version" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::APK build numbers differ or are not the CI run number."
             exit 1
           fi
@@ -396,6 +412,14 @@ jobs:
         with:
           name: balloon-burst-internal-qa-wall-clock-apk
           path: artifacts/balloon-burst-internal-qa-wall-clock.apk
+          if-no-files-found: error
+
+      - name: Upload framework frame-request QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-frame-request-apk
+          path: artifacts/balloon-burst-internal-qa-frame-request.apk
           if-no-files-found: error
 
       - name: Upload internal QA APK
