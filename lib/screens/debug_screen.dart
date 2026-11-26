@@ -100,6 +100,8 @@ ${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
 ${widget.gameState.qaUiBuildStats?.reportFields ?? ''}
 ${widget.gameState.qaFrameSchedulerStats?.reportFields ?? ''}
 ${QaFrameRequestBinding.active?.stats.reportFields ?? ''}
+${QaNativeHandoffFlags.enabled ? (QaFrameRequestBinding.active?.handoff.reportFields ?? '') : ''}
+${QaNativeHandoffFlags.enabled ? (QaFrameRequestBinding.active?.handoff.eventFields ?? '') : ''}
 $androidFrameInfo
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
@@ -122,6 +124,12 @@ ${rawLogs.join('\n')}
   }
 
   Future<void> _copyDetailedReport(List<String> rawLogs) async {
+    if (QaNativeHandoffFlags.enabled) {
+      final probe = QaFrameRequestBinding.active;
+      if (probe != null) {
+        await probe.handoff.samplePhase('reportExport');
+      }
+    }
     final androidFrameInfo = await QaAndroidWindowFrames.snapshot();
     final report = _buildDetailedReport(rawLogs, androidFrameInfo: androidFrameInfo);
 
@@ -134,6 +142,12 @@ ${rawLogs.join('\n')}
   }
 
   Future<void> _shareDetailedReport(List<String> rawLogs) async {
+    if (QaNativeHandoffFlags.enabled) {
+      final probe = QaFrameRequestBinding.active;
+      if (probe != null) {
+        await probe.handoff.samplePhase('reportExport');
+      }
+    }
     final androidFrameInfo = await QaAndroidWindowFrames.snapshot();
     final report = _buildDetailedReport(rawLogs, androidFrameInfo: androidFrameInfo);
     final dir = await getTemporaryDirectory();

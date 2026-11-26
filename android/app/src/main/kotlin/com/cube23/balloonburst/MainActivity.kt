@@ -55,6 +55,26 @@ class MainActivity : FlutterActivity() {
                         "boottimeNs" to SystemClock.elapsedRealtimeNanos()
                     )
                 )
+                // TJ-45L: only invoked in its dedicated QA APK, nine
+                // times at run start and nine times on report export.
+                // Passive trace marker; never requests an Android frame.
+                "getQaNativeHandoffClockAnchor" -> {
+                    android.os.Trace.beginSection("TJ45L_clock_anchor")
+                    try {
+                        val monoBefore = System.nanoTime()
+                        val boot = SystemClock.elapsedRealtimeNanos()
+                        val monoAfter = System.nanoTime()
+                        result.success(
+                            mapOf(
+                                "monoBeforeNs" to monoBefore,
+                                "boottimeNs" to boot,
+                                "monoAfterNs" to monoAfter
+                            )
+                        )
+                    } finally {
+                        android.os.Trace.endSection()
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

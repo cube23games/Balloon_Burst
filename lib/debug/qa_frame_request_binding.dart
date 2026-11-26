@@ -1,10 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:balloon_burst/debug/auto_tap/auto_tap_controller.dart';
 import 'qa_frame_request_stats.dart';
+import 'qa_native_handoff_calibration.dart';
 
 class QaFrameRequestFlags {
   static const bool enabled = kEnableQaAutoTap &&
-      bool.fromEnvironment('TJ45K_FRAME_REQUEST', defaultValue: false);
+      (bool.fromEnvironment('TJ45K_FRAME_REQUEST', defaultValue: false) ||
+       bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false));
+}
+
+class QaNativeHandoffFlags {
+  static const bool enabled = QaFrameRequestFlags.enabled &&
+      bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false);
 }
 
 /// Observe the *existing* Flutter framework frame requests and begins.
@@ -14,6 +21,8 @@ class QaFrameRequestFlags {
 class QaFrameRequestBinding extends WidgetsFlutterBinding {
   static QaFrameRequestBinding? _active;
   final QaFrameRequestStats stats = QaFrameRequestStats();
+  late final QaNativeHandoffCalibration handoff =
+      QaNativeHandoffCalibration(stats);
   QaFrameRequestBinding() { _active = this; }
   static QaFrameRequestBinding? get active => _active;
 

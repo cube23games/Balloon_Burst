@@ -338,8 +338,14 @@ class _GameScreenState extends State<GameScreen>
     final frameRequestProbe = QaFrameRequestBinding.active;
     if (frameRequestProbe != null) {
       frameRequestProbe.stats.reset();
-      // One QA-only native clock-anchor request per run. No per-frame IPC.
-      unawaited(_sampleNativeFrameClock(frameRequestProbe.stats));
+      if (QaNativeHandoffFlags.enabled) {
+        frameRequestProbe.handoff.reset();
+        // One bounded startup calibration burst, no frame listeners.
+        unawaited(frameRequestProbe.handoff.samplePhase('runStart'));
+      } else {
+        // Retain TJ-45K behavior unchanged in its control APK.
+        unawaited(_sampleNativeFrameClock(frameRequestProbe.stats));
+      }
     }
     unawaited(QaAndroidWindowFrames.start());
     if (_qaFlutterTimings != null) {
