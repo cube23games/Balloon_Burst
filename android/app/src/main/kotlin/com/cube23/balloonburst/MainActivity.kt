@@ -16,6 +16,9 @@ import java.util.concurrent.Executor
 
 class MainActivity : FlutterActivity() {
     private val lifecycleChannelName = "com.cube23.balloonburst/lifecycle"
+    private val qaWindowChannelName = "com.cube23.balloonburst/qa_window_frames"
+    private var qaWindowChannel: MethodChannel? = null
+    private var qaWindowProbe: QaWindowFrameMetrics? = null
     private var lifecycleChannel: MethodChannel? = null
     private var sentPaused = false
 
@@ -44,9 +47,70 @@ class MainActivity : FlutterActivity() {
         lifecycleChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getDeviceDiagnostics" -> result.success(buildDeviceDiagnostics())
+                "getQaFrameClockAnchor" -> result.success(
+                    mapOf(
+                        // System.nanoTime is the native monotonic-clock anchor.
+                        // elapsedRealtimeNanos uses the boot-time clock.
+                        "monotonicNs" to System.nanoTime(),
+                        "boottimeNs" to SystemClock.elapsedRealtimeNanos()
+                    )
+                )
+                // TJ-45L: only invoked in its dedicated QA APK, nine
+                // times at run start and nine times on report export.
+                // Passive trace marker; never requests an Android frame.
+                "getQaNativeHandoffClockAnchor" -> {
+                    android.os.Trace.beginSection("TJ45L_clock_anchor")
+                    try {
+                        val monoBefore = System.nanoTime()
+                        val boot = SystemClock.elapsedRealtimeNanos()
+                        val monoAfter = System.nanoTime()
+                        result.success(
+                            mapOf(
+                                "monoBeforeNs" to monoBefore,
+                                "boottimeNs" to boot,
+                                "monoAfterNs" to monoAfter
+                            )
+                        )
+                    } finally {
+                        android.os.Trace.endSection()
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
+
+        // Registration alone adds no frame listener. Only the QA Dart flag
+        // invokes "start" during a measured game session.
+        qaWindowChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, qaWindowChannelName
+        )
+        qaWindowChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    val probe = qaWindowProbe ?: QaWindowFrameMetrics(window).also {
+                        qaWindowProbe = it
+                    }
+                    result.success(probe.start())
+                }
+                "snapshot" -> result.success(
+                    qaWindowProbe?.snapshot() ?: "qaAndroidWindowFrameProbe: not-started"
+                )
+                "stop" -> {
+                    qaWindowProbe?.stop()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        qaWindowProbe?.stop()
+        qaWindowChannel?.setMethodCallHandler(null)
+        qaWindowChannel = null
+        lifecycleChannel?.setMethodCallHandler(null)
+        lifecycleChannel = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onStart() {
