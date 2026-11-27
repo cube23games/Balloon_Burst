@@ -69,14 +69,28 @@ class MainActivity : FlutterActivity() {
                     val args = call.arguments as? Map<*, *>
                     val frameId = (args?.get("frameId") as? Number)?.toLong() ?: -1L
                     val waitUs = (args?.get("requestToBeginUs") as? Number)?.toLong() ?: -1L
-                    if (frameId > 0L && waitUs >= 35714L && qaSlowFrameMarkers < qaMaxSlowFrameMarkers) {
+                    val nativeReceiptBootNs = SystemClock.elapsedRealtimeNanos()
+                    var status = "rejected"
+                    if (frameId > 0L && waitUs >= 35714L &&
+                        qaSlowFrameMarkers < qaMaxSlowFrameMarkers) {
                         qaSlowFrameMarkers++
-                        // Arrival-time breadcrumb only. NOT physical presentation or a
-                        // hard match to the app SurfaceFlinger frame timeline.
-                        android.os.Trace.beginSection("TJ45N_f${frameId}_w${waitUs}")
-                        android.os.Trace.endSection()
+                        // Trace.isEnabled() reports whether app tracing is enabled,
+                        // not whether Perfetto ultimately retained this section.
+                        val traceEnabled = android.os.Trace.isEnabled()
+                        if (traceEnabled) {
+                            // IPC receipt breadcrumb only, never presentation.
+                            android.os.Trace.beginSection("TJ45N_f${frameId}_w${waitUs}")
+                            android.os.Trace.endSection()
+                            status = "emitted"
+                        } else {
+                            status = "disabled"
+                        }
                     }
-                    result.success(null)
+                    result.success(mapOf(
+                        "status" to status,
+                        "frameId" to frameId,
+                        "nativeReceiptBootNs" to nativeReceiptBootNs
+                    ))
                 }
                 "getQaNativeHandoffClockAnchor" -> {
                     android.os.Trace.beginSection("TJ45L_clock_anchor")
