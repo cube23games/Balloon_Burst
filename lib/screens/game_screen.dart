@@ -407,6 +407,26 @@ class _GameScreenState extends State<GameScreen>
     _ticker = createTicker(_onTick)..start();
   }
 
+  Future<void> _submitQaSlowFrameMarker(
+      QaFrameRequestStats stats, QaFrameRequestObservation observation,
+      int generation) async {
+    try {
+      final reply = await _nativeLifecycleChannel
+          .invokeMapMethod<String, dynamic>('traceQaSlowFrame', <String, int>{
+        'frameId': observation.frameId,
+        'requestToBeginUs': observation.requestToBeginUs!,
+      });
+      final status = reply?['status'];
+      final bootNs = reply?['nativeReceiptBootNs'];
+      stats.completeQaSlowFrameMarker(observation.frameId, generation,
+          status is String ? status : 'failed',
+          nativeBootNs: bootNs is int ? bootNs : -1);
+    } catch (_) {
+      stats.completeQaSlowFrameMarker(
+          observation.frameId, generation, 'failed');
+    }
+  }
+
   Future<void> _sampleNativeFrameClock(QaFrameRequestStats stats) async {
     final before = stats.clockUs;
     try {
@@ -733,14 +753,16 @@ class _GameScreenState extends State<GameScreen>
         // timestamp native VSync or prove actual Surface presentation.
         if (QaAppFrameTraceFlags.enabled && observation != null &&
             (observation.requestToBeginUs ?? 0) >=
-                QaFrameRequestStats.slowThresholdUs &&
-            frameProbe.stats.recordQaSlowFrameMarkerSubmission()) {
-          unawaited(_nativeLifecycleChannel.invokeMethod<void>(
-            'traceQaSlowFrame', <String, int>{
-              'frameId': observation.frameId,
-              'requestToBeginUs': observation.requestToBeginUs!,
-            },
-          ).catchError((Object _) {}));
+                QaFrameRequestStats.slowThresholdUs) {
+          final generation =
+              frameProbe.stats.reserveQaSlowFrameMarker(observation);
+          if (generation != null) {
+            // The reply establishes native receipt, NOT that Perfetto
+            // recorded the marker or the screen presented this frame.
+            unawaited(_submitQaSlowFrameMarker(
+              frameProbe.stats, observation, generation,
+            ));
+          }
         }
       }
       if (sample != null) {
