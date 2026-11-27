@@ -1187,7 +1187,7 @@ class _GameScreenState extends State<GameScreen>
 
   void _maybeSubmitLeaderboard() {
     // Level-based attempts must not contaminate Endless Arcade rankings.
-    if (_isSkyward) return;
+    if (_isSkyward || widget.spawner.benchmarkSeed != null) return;
     final summary = widget.engine.runLifecycle.latestSummary;
     if (summary == null) return;
 
@@ -1662,6 +1662,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   Future<void> _revive() async {
+    if (widget.spawner.benchmarkSeed != null) return;
     final summary = widget.engine.runLifecycle.latestSummary;
     if (summary == null || summary.endReason == EndReason.victory) return;
 
