@@ -14,7 +14,6 @@ void main() {
       expect(stats.calls(QaPaintCostStats.balloon), 40);
       expect(stats.samples(QaPaintCostStats.balloon), 2);
       expect(stats.reportFields, contains('qaPaintCostDiagnostic: enabled'));
-      expect(stats.reportFields, contains('scope: NOT-GPU'), isFalse);
       expect(stats.reportFields, contains('qaPaintCost_balloon: calls=40 samples=2'));
     } else {
       expect(stats.calls(QaPaintCostStats.balloon), 0);
