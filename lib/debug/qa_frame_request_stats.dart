@@ -20,6 +20,14 @@ class QaFrameRequestObservation {
   int get beginToTickerUs => tickerUs - beginUs;
 }
 
+/// A single *selected* slow Flutter callback, not a SurfaceFlinger frame.
+class QaAppFrameMarker {
+  QaAppFrameMarker(this.observation);
+  final QaFrameRequestObservation observation;
+  String status = 'pending'; // pending, emitted, disabled, rejected, failed
+  int nativeBootNs = -1;
+}
+
 class QaFrameRequestStats {
   static const int slowThresholdUs = 35714;
   static const int maxRetained = 8;
@@ -30,12 +38,51 @@ class QaFrameRequestStats {
   int requests = 0, beginFrames = 0, tickerCallbacks = 0;
   int unmatchedBegins = 0, unmatchedTickers = 0, pendingOverwritten = 0;
   int invalidIntervals = 0, wallOnlySlow = 0;
-  int qaSlowFrameMarkerSubmissions = 0;
   static const int maxSlowFrameMarkerSubmissions = 32;
-  bool recordQaSlowFrameMarkerSubmission() {
-    if (qaSlowFrameMarkerSubmissions >= maxSlowFrameMarkerSubmissions) return false;
+  final List<QaAppFrameMarker> _qaAppMarkers = [];
+  List<QaAppFrameMarker> get qaAppMarkers =>
+      List<QaAppFrameMarker>.unmodifiable(_qaAppMarkers);
+  int qaSlowFrameMarkerSubmissions = 0;
+  int qaAppFrameAcknowledged = 0;
+  int qaAppFrameTraceEnabled = 0;
+  int qaAppFrameTraceDisabled = 0;
+  int qaAppFrameNativeRejected = 0;
+  int qaAppFrameFailures = 0;
+  int qaAppFrameOverflow = 0;
+  int _markerGeneration = 0;
+  int get markerGeneration => _markerGeneration;
+
+  /// Stores the same selected IDs sent to native, never only the eight
+  /// independently ranked 'worst' frames. Return the run generation token.
+  int? reserveQaSlowFrameMarker(QaFrameRequestObservation observation) {
+    if ((observation.requestToBeginUs ?? -1) < slowThresholdUs) return null;
+    if (_qaAppMarkers.length >= maxSlowFrameMarkerSubmissions) {
+      qaAppFrameOverflow++;
+      return null;
+    }
+    _qaAppMarkers.add(QaAppFrameMarker(observation));
     qaSlowFrameMarkerSubmissions++;
-    return true;
+    return _markerGeneration;
+  }
+
+  /// Ignore stale IPC replies from previous gameplay runs.
+  void completeQaSlowFrameMarker(int frameId, int generation,
+      String status, {int nativeBootNs = -1}) {
+    if (generation != _markerGeneration) return;
+    for (final marker in _qaAppMarkers) {
+      if (marker.observation.frameId != frameId ||
+          marker.status != 'pending') continue;
+      final accepted = status == 'emitted' || status == 'disabled' ||
+          status == 'rejected';
+      marker.status = accepted ? status : 'failed';
+      marker.nativeBootNs = nativeBootNs > 0 ? nativeBootNs : -1;
+      if (marker.status == 'emitted') qaAppFrameTraceEnabled++;
+      if (marker.status == 'disabled') qaAppFrameTraceDisabled++;
+      if (marker.status == 'rejected') qaAppFrameNativeRejected++;
+      if (marker.status == 'failed') qaAppFrameFailures++;
+      qaAppFrameAcknowledged++;
+      return;
+    }
   }
   int requestWaitsOverThreshold = 0, beginToTickerOver8ms = 0;
   int? _pendingRequestUs;
@@ -63,7 +110,12 @@ class QaFrameRequestStats {
     requests = beginFrames = tickerCallbacks = 0;
     unmatchedBegins = unmatchedTickers = pendingOverwritten = 0;
     invalidIntervals = wallOnlySlow = 0;
+    _markerGeneration++;
+    _qaAppMarkers.clear();
     qaSlowFrameMarkerSubmissions = 0;
+    qaAppFrameAcknowledged = qaAppFrameTraceEnabled = 0;
+    qaAppFrameTraceDisabled = qaAppFrameNativeRejected = 0;
+    qaAppFrameFailures = qaAppFrameOverflow = 0;
     requestWaitsOverThreshold = beginToTickerOver8ms = 0;
     _pendingRequestUs = _beginUs = _beginRequestUs = null;
     _lastTickerUs = _lastEngineStampUs = null;
@@ -184,6 +236,15 @@ class QaFrameRequestStats {
       'qaAppFrameTraceEnabled: ${const bool.fromEnvironment('TJ45N_APP_FRAME_TRACE', defaultValue: false)}',
       'qaAppFrameTraceSubmitted: $qaSlowFrameMarkerSubmissions',
       'qaAppFrameTraceMaxSubmitted: $maxSlowFrameMarkerSubmissions',
+      'qaAppFrameTraceAcknowledged: $qaAppFrameAcknowledged',
+      'qaAppFrameTraceNativeEnabled: $qaAppFrameTraceEnabled',
+      'qaAppFrameTraceNativeDisabled: $qaAppFrameTraceDisabled',
+      'qaAppFrameTraceNativeRejected: $qaAppFrameNativeRejected',
+      'qaAppFrameTraceFailed: $qaAppFrameFailures',
+      'qaAppFrameTracePending: ${qaSlowFrameMarkerSubmissions - qaAppFrameAcknowledged}',
+      'qaAppFrameTraceOverflow: $qaAppFrameOverflow',
+      'qaAppFrameTraceRetained: ${_qaAppMarkers.length}',
+      'qaAppFrameTraceMarkerSemantics: nativeIPCReceipt-notPhysicalPresentation',
       'qaFrameRequestScope: framework-scheduleFrame-to-handleBeginFrame-to-gameTicker',
       'qaFrameRequestNativeVsyncScope: perfetto-only-no-native-frame-loop',
       'qaFrameRequestCount: $requests',
@@ -215,6 +276,16 @@ class QaFrameRequestStats {
             'engineGapMs=${_ms(s.engineGapUs)} '
             'wallGapMs=${_ms(s.wallGapUs)}');
       }
+    }
+    for (var i = 0; i < _qaAppMarkers.length; i++) {
+      final marker = _qaAppMarkers[i];
+      final obs = marker.observation;
+      out.add('qaAppFrameTraceMarker[$i]: '
+          'frameId=${obs.frameId} sample=${obs.tickerSample} '
+          'dartRequestUs=${obs.requestUs ?? -1} '
+          'dartBeginUs=${obs.beginUs} dartTickerUs=${obs.tickerUs} '
+          'requestToBeginUs=${obs.requestToBeginUs ?? -1} '
+          'status=${marker.status} nativeReceiptBootNs=${marker.nativeBootNs}');
     }
     add('qaFrameRequestWorstWallOnly', worstWallOnly);
     add('qaFrameRequestWorstWait', worstRequestWait);
