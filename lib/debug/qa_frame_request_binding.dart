@@ -10,6 +10,13 @@ class QaFrameRequestFlags {
        bool.fromEnvironment('TJ45M_CLOCK_EPOCH', defaultValue: false));
 }
 
+/// TJ-45N opt-in: only emits trace breadcrumbs for bounded slow frames.
+/// Not a presentation timestamp and never enabled in public/control APKs.
+class QaAppFrameTraceFlags {
+  static const bool enabled = QaClockEpochFlags.enabled &&
+      bool.fromEnvironment('TJ45N_APP_FRAME_TRACE', defaultValue: false);
+}
+
 class QaNativeHandoffFlags {
   static const bool enabled = QaFrameRequestFlags.enabled &&
       (bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false) ||
