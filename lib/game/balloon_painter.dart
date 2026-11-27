@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:balloon_burst/game/game_state.dart';
+import 'package:balloon_burst/debug/qa_paint_cost_stats.dart';
 import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/game/balloon_type.dart';
 import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
@@ -24,6 +25,16 @@ class BalloonPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final stats = gameState.qaPaintCostStats;
+    if (stats == null) {
+      _paintScene(canvas, size);
+    } else {
+      stats.measure(QaPaintCostStats.balloon,
+          () => _paintScene(canvas, size));
+    }
+  }
+
+  void _paintScene(Canvas canvas, Size size) {
     final dangerHeight = 40.0;
     final dangerRect = Rect.fromLTWH(
       0,
@@ -412,6 +423,16 @@ class BalloonPainter extends CustomPainter {
 
   void _paintStreakGlow(Canvas canvas, Offset center, double radius) {
     if (streak < 10) return;
+    final stats = gameState.qaPaintCostStats;
+    if (stats == null) {
+      _paintStreakGlowActual(canvas, center, radius);
+    } else {
+      stats.measure(QaPaintCostStats.aura,
+          () => _paintStreakGlowActual(canvas, center, radius));
+    }
+  }
+
+  void _paintStreakGlowActual(Canvas canvas, Offset center, double radius) {
 
     final glowOpacity = streak >= 30
         ? 0.44
