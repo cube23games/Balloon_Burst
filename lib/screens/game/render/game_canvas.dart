@@ -677,7 +677,13 @@ class _QaMeasuredPainter extends CustomPainter {
       stats.measure(category, () => delegate.paint(canvas, size));
 
   @override
-  bool shouldRepaint(covariant _QaMeasuredPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _QaMeasuredPainter oldDelegate) {
+    if (delegate.runtimeType != oldDelegate.delegate.runtimeType ||
+        category != oldDelegate.category) {
+      return true;
+    }
+    return delegate.shouldRepaint(oldDelegate.delegate);
+  }
 }
 
 class _ScoreBurstsPainter extends CustomPainter {
