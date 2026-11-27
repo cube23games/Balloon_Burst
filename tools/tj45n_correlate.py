@@ -85,7 +85,7 @@ def parse_report(raw):
         if not line.startswith("qaAppFrameTraceMarker["):
             continue
         def field(name):
-            hit = re.search(r"\\b" + name + r"=([^ ]+)", line)
+            hit = re.search(r"\b" + name + r"=([^ ]+)", line)
             if hit is None:
                 raise ValueError("incomplete marker record: " + name)
             return hit.group(1)
