@@ -21,6 +21,9 @@ class MainActivity : FlutterActivity() {
     private var qaWindowProbe: QaWindowFrameMetrics? = null
     private var lifecycleChannel: MethodChannel? = null
     private var sentPaused = false
+    // TJ-45N: QA trace markers only; no per-frame listeners or new scheduling.
+    private var qaSlowFrameMarkers = 0
+    private val qaMaxSlowFrameMarkers = 32
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val screenCaptureExecutor = Executor { command ->
@@ -58,6 +61,23 @@ class MainActivity : FlutterActivity() {
                 // TJ-45L: only invoked in its dedicated QA APK, nine
                 // times at run start and nine times on report export.
                 // Passive trace marker; never requests an Android frame.
+                "resetQaSlowFrameMarkers" -> {
+                    qaSlowFrameMarkers = 0
+                    result.success(null)
+                }
+                "traceQaSlowFrame" -> {
+                    val args = call.arguments as? Map<*, *>
+                    val frameId = (args?.get("frameId") as? Number)?.toLong() ?: -1L
+                    val waitUs = (args?.get("requestToBeginUs") as? Number)?.toLong() ?: -1L
+                    if (frameId > 0L && waitUs >= 35714L && qaSlowFrameMarkers < qaMaxSlowFrameMarkers) {
+                        qaSlowFrameMarkers++
+                        // Arrival-time breadcrumb only. NOT physical presentation or a
+                        // hard match to the app SurfaceFlinger frame timeline.
+                        android.os.Trace.beginSection("TJ45N_f${frameId}_w${waitUs}")
+                        android.os.Trace.endSection()
+                    }
+                    result.success(null)
+                }
                 "getQaNativeHandoffClockAnchor" -> {
                     android.os.Trace.beginSection("TJ45L_clock_anchor")
                     try {
