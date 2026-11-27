@@ -30,6 +30,13 @@ class QaFrameRequestStats {
   int requests = 0, beginFrames = 0, tickerCallbacks = 0;
   int unmatchedBegins = 0, unmatchedTickers = 0, pendingOverwritten = 0;
   int invalidIntervals = 0, wallOnlySlow = 0;
+  int qaSlowFrameMarkerSubmissions = 0;
+  static const int maxSlowFrameMarkerSubmissions = 32;
+  bool recordQaSlowFrameMarkerSubmission() {
+    if (qaSlowFrameMarkerSubmissions >= maxSlowFrameMarkerSubmissions) return false;
+    qaSlowFrameMarkerSubmissions++;
+    return true;
+  }
   int requestWaitsOverThreshold = 0, beginToTickerOver8ms = 0;
   int? _pendingRequestUs;
   int? _beginUs;
@@ -56,6 +63,7 @@ class QaFrameRequestStats {
     requests = beginFrames = tickerCallbacks = 0;
     unmatchedBegins = unmatchedTickers = pendingOverwritten = 0;
     invalidIntervals = wallOnlySlow = 0;
+    qaSlowFrameMarkerSubmissions = 0;
     requestWaitsOverThreshold = beginToTickerOver8ms = 0;
     _pendingRequestUs = _beginUs = _beginRequestUs = null;
     _lastTickerUs = _lastEngineStampUs = null;
@@ -172,6 +180,10 @@ class QaFrameRequestStats {
     if (!_running) return '';
     final out = <String>[
       'qaFrameRequestCorrelationDiagnostic: enabled',
+      'qaAppFrameIdentityScope: framework-frameId-to-qa-native-breadcrumb-not-surface-presentation',
+      'qaAppFrameTraceEnabled: ${const bool.fromEnvironment('TJ45N_APP_FRAME_TRACE', defaultValue: false)}',
+      'qaAppFrameTraceSubmitted: $qaSlowFrameMarkerSubmissions',
+      'qaAppFrameTraceMaxSubmitted: $maxSlowFrameMarkerSubmissions',
       'qaFrameRequestScope: framework-scheduleFrame-to-handleBeginFrame-to-gameTicker',
       'qaFrameRequestNativeVsyncScope: perfetto-only-no-native-frame-loop',
       'qaFrameRequestCount: $requests',
