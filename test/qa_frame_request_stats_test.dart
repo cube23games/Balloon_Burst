@@ -64,6 +64,19 @@ void main() {
     expect(s.reportFields, contains('qaFrameRequestCount: 0'));
   });
 
+  test('TJ-45N bounds slow-frame IDs and reset clears counters', () {
+    final s = QaFrameRequestStats()..reset();
+    for (var i = 0; i < QaFrameRequestStats.maxSlowFrameMarkerSubmissions; i++) {
+      expect(s.recordQaSlowFrameMarkerSubmission(), isTrue);
+    }
+    expect(s.recordQaSlowFrameMarkerSubmission(), isFalse);
+    expect(s.qaSlowFrameMarkerSubmissions, 32);
+    expect(s.reportFields, contains('qaAppFrameTraceSubmitted: 32'));
+    s.reset();
+    expect(s.qaSlowFrameMarkerSubmissions, 0);
+    expect(s.recordQaSlowFrameMarkerSubmission(), isTrue);
+  });
+
   test('pause cannot join a stale request or ticker clock', () {
     final s = QaFrameRequestStats()..reset();
     s.recordRequest(5);
