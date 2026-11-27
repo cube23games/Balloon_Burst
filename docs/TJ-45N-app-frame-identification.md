@@ -45,3 +45,29 @@ buffer lifecycle correlation from an instrumented Flutter engine/Android surface
 - Normal 24/24 stars, saved coins, audio, V2 aura, physics, UI preserved.
 - No new trace requested until signed CI and targeted phone QA are warranted.
 - Keep source branches draft, no merges or backup main changes without approval.
+
+## TJ-45N corrective patch after signed #105 phone trace
+
+The 128.9-second November 27 run confirmed 32 Dart submissions but zero
+`TJ45N_f...` names in its raw Perfetto file, despite valid TJ45L anchors.
+Submission is not acknowledgment or proof that a trace record was retained.
+Corrective instrumentation therefore:
+
+- Retains **exactly the first 32 selected** slow request-to-begin frame IDs,
+  wait durations, Dart request/begin/ticker stamps, and per-ID response status.
+  The eight independently ranked worst events are **not** assumed to overlap.
+- Reports counts for submissions, acknowledged native receipts, tracing enabled
+  or disabled at native receipt, rejected calls, IPC failures, still pending
+  responses and qualifying events beyond the bounded cap.
+- Each native reply echoes the ID and BOOTTIME receipt timestamp. Mismatched
+  frame IDs or delayed responses across a reset fail closed. An `emitted`
+  acknowledgment means `Trace.isEnabled()` was true at the moment of
+  `Trace.beginSection`; it **does not prove** Perfetto captured the name.
+- Offline analysis now uses the retained IDs, checks which named breadcrumbs
+  actually occur in the same trace, and reports MISSING/PRESENT/DUPLICATED.
+  Nearby display-level frames are suggestions only, never a physical
+  app-surface match.
+
+After the signed QA build is green, use **a short 15–30-second trace validation**
+first; no second two-minute gameplay trace until at least one captured marker
+is independently confirmed. Protect 24/24 stars and the last 4,452 coins.
