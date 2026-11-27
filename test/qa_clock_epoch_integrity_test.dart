@@ -17,7 +17,7 @@ void main() {
     // Comparable to the real TJ-45L session: early sample at 0.168 sec.
     c.recordSample(
       phase: 'runStart', beforeUs: 164485, afterUs: 171195,
-      monoBeforeNs: 100000000000, monoAfterNs: 100000001154,
+      monoBeforeNs: 100000000000000, monoAfterNs: 100000000001154,
       bootNs: 107035694061830,
     );
     // Later export sample at 97.577 sec. A suspend can move
@@ -25,7 +25,7 @@ void main() {
     final extra = jumpNs ?? 0;
     c.recordSample(
       phase: 'reportExport', beforeUs: 97577213, afterUs: 97577343,
-      monoBeforeNs: 200000000000, monoAfterNs: 200000000077,
+      monoBeforeNs: 200000000000000, monoAfterNs: 200000000000077,
       bootNs: 207035694061291 + extra,
     );
     return c;
