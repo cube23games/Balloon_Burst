@@ -9,7 +9,7 @@ import json
 import re
 from pathlib import Path
 
-MAX_RECORDS = 8
+MAX_RECORDS = 32
 PACKET_FRAME_TIMELINE = 76
 ACTUAL_DISPLAY_FRAME = 2
 
@@ -106,7 +106,7 @@ def parse_report(raw):
         raise ValueError("submitted marker count does not equal retained IDs")
     return {"run_id": read("runId"), "zero_boot_ns": zero,
             "duration_s": duration_s, "export_end_ns": zero + export_mid * 1000,
-            "observations": observations[:MAX_RECORDS]}
+            "observations": observations}
 
 
 def read_native_markers(path):
