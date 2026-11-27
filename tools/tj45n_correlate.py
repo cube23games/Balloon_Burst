@@ -162,7 +162,7 @@ def self_test():
             out.append((value & 127) | 128)
             value >>= 7
         out.append(value)
-        return bytes(out + bytes([value]))
+        return bytes(out)
     def int_field(n, value):
         return enc(n << 3) + enc(value)
     def blob_field(n, data):
