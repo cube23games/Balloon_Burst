@@ -206,7 +206,7 @@ def self_test():
     assert correlate(demo, [], [3])["candidates"][0]["marker_status"] == "PRESENT"
     assert correlate(demo, [], [])["missing_reported_markers"] == 1
     assert correlate(demo, [], [3, 3])["candidates"][0]["marker_status"] == "DUPLICATED"
-    fixture = "\\n".join([
+    fixture = "\n".join([
         "qaClockEpochIntegrityDiagnostic: enabled",
         "qaClockEpochDiscontinuity: notDetected",
         "qaClockEpochLifecycleMarkCount: 0",
