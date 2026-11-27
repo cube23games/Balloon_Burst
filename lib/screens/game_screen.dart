@@ -14,6 +14,7 @@ import 'package:balloon_burst/debug/flutter_frame_timing_stats.dart';
 import 'package:balloon_burst/debug/game_update_timing_stats.dart';
 import 'package:balloon_burst/debug/frame_phase_slow_stats.dart';
 import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
+import 'package:balloon_burst/debug/qa_paint_cost_stats.dart';
 import 'package:balloon_burst/debug/qa_frame_scheduler_stats.dart';
 import 'package:balloon_burst/debug/qa_frame_request_binding.dart';
 import 'package:balloon_burst/debug/qa_frame_request_stats.dart';
@@ -329,6 +330,9 @@ class _GameScreenState extends State<GameScreen>
     _nativeLifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    if (QaPaintCostStats.enabled) {
+      widget.gameState.qaPaintCostStats = QaPaintCostStats();
+    }
     widget.gameState.qaFrameGapStats = _qaFrameGaps;
     widget.gameState.qaFlutterFrameTimingStats = _qaFlutterTimings;
     widget.gameState.qaGameUpdateTimingStats = _qaGameUpdateTimings;
