@@ -39,6 +39,7 @@ jobs:
         run: |
           bash -n tools/build_apk_with_network_retry.sh
           python3 tools/tj45n_correlate.py --self-test
+          flutter test --dart-define=TJ45O_PAINT_COST=true test/qa_paint_cost_stats_test.dart
           flutter pub get
           flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart test/qa_ui_build_stats_test.dart test/qa_frame_scheduler_stats_test.dart test/qa_wall_clock_correlation_test.dart test/qa_frame_request_stats_test.dart test/qa_native_handoff_calibration_test.dart test/qa_clock_epoch_integrity_test.dart
 
@@ -284,6 +285,18 @@ jobs:
           bash tools/build_apk_with_network_retry.sh qa-app-frame
           cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-app-frame.apk
 
+      - name: Build TJ-45O-A paint-cost QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-paint-cost
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-paint-cost.apk
+
       - name: Verify signatures and incrementing versionCode
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
@@ -334,6 +347,7 @@ jobs:
           native_handoff="artifacts/balloon-burst-internal-qa-native-handoff.apk"
           clock_epoch="artifacts/balloon-burst-internal-qa-clock-epoch.apk"
           app_frame="artifacts/balloon-burst-internal-qa-app-frame.apk"
+          paint_cost="artifacts/balloon-burst-internal-qa-paint-cost.apk"
           public_cert="$(cert_sha "$public")"
           qa_cert="$(cert_sha "$qa")"
           glow_cert="$(cert_sha "$glow")"
@@ -348,6 +362,7 @@ jobs:
           native_handoff_cert="$(cert_sha "$native_handoff")"
           clock_epoch_cert="$(cert_sha "$clock_epoch")"
           app_frame_cert="$(cert_sha "$app_frame")"
+          paint_cost_cert="$(cert_sha "$paint_cost")"
           public_version="$(version_code "$public")"
           qa_version="$(version_code "$qa")"
           glow_version="$(version_code "$glow")"
@@ -362,8 +377,9 @@ jobs:
           native_handoff_version="$(version_code "$native_handoff")"
           clock_epoch_version="$(version_code "$clock_epoch")"
           app_frame_version="$(version_code "$app_frame")"
+          paint_cost_version="$(version_code "$paint_cost")"
 
-          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" || "$public_cert" != "$scheduler_cert" || "$public_cert" != "$wall_cert" || "$public_cert" != "$frame_request_cert" || "$public_cert" != "$native_handoff_cert" || "$public_cert" != "$clock_epoch_cert" || "$public_cert" != "$app_frame_cert" ]]; then
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" || "$public_cert" != "$scheduler_cert" || "$public_cert" != "$wall_cert" || "$public_cert" != "$frame_request_cert" || "$public_cert" != "$native_handoff_cert" || "$public_cert" != "$clock_epoch_cert" || "$public_cert" != "$app_frame_cert" || "$public_cert" != "$paint_cost_cert" ]]; then
             echo "::error::Public and QA signing certificates differ or are missing."
             exit 1
           fi
@@ -380,7 +396,8 @@ jobs:
                  "$frame_request_version" != "$GITHUB_RUN_NUMBER" ||
                  "$native_handoff_version" != "$GITHUB_RUN_NUMBER" ||
                  "$clock_epoch_version" != "$GITHUB_RUN_NUMBER" ||
-                 "$app_frame_version" != "$GITHUB_RUN_NUMBER" ]]; then
+                 "$app_frame_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$paint_cost_version" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::APK build numbers differ or are not the CI run number."
             exit 1
           fi
@@ -485,6 +502,14 @@ jobs:
         with:
           name: balloon-burst-internal-qa-clock-epoch-apk
           path: artifacts/balloon-burst-internal-qa-clock-epoch.apk
+          if-no-files-found: error
+
+      - name: Upload TJ-45O-A paint-cost QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-paint-cost-apk
+          path: artifacts/balloon-burst-internal-qa-paint-cost.apk
           if-no-files-found: error
 
       - name: Upload TJ-45N app-frame QA APK (NOT FOR RELEASE)
