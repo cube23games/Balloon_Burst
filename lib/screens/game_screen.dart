@@ -347,6 +347,12 @@ class _GameScreenState extends State<GameScreen>
         unawaited(_sampleNativeFrameClock(frameRequestProbe.stats));
       }
     }
+    // One reset per run; no recurring platform calls or frame requests.
+    if (QaAppFrameTraceFlags.enabled) {
+      unawaited(_nativeLifecycleChannel
+          .invokeMethod<void>('resetQaSlowFrameMarkers')
+          .catchError((Object _) {}));
+    }
     unawaited(QaAndroidWindowFrames.start());
     if (_qaFlutterTimings != null) {
       WidgetsBinding.instance.addTimingsCallback(_onFlutterTimings);
@@ -716,11 +722,26 @@ class _GameScreenState extends State<GameScreen>
       // Same existing callback, same frame ID, no extra scheduling.
       final frameProbe = QaFrameRequestBinding.active;
       if (frameProbe != null) {
-        frameProbe.stats.recordTicker(
+        final observation = frameProbe.stats.recordTicker(
           tickerSample: schedulerStats.tickSamples,
           wallUs: frameProbe.stats.clockUs,
           rawStampUs: rawStampUs,
         );
+        // TJ-45N: at most 32 platform-channel breadcrumbs per RUN,
+        // only for slow request-to-begin events already detected by TJ-45K.
+        // The marker is created after the observed callback; it does NOT
+        // timestamp native VSync or prove actual Surface presentation.
+        if (QaAppFrameTraceFlags.enabled && observation != null &&
+            (observation.requestToBeginUs ?? 0) >=
+                QaFrameRequestStats.slowThresholdUs &&
+            frameProbe.stats.recordQaSlowFrameMarkerSubmission()) {
+          unawaited(_nativeLifecycleChannel.invokeMethod<void>(
+            'traceQaSlowFrame', <String, int>{
+              'frameId': observation.frameId,
+              'requestToBeginUs': observation.requestToBeginUs!,
+            },
+          ).catchError((Object _) {}));
+        }
       }
       if (sample != null) {
         scheduler.addPostFrameCallback((_) {
