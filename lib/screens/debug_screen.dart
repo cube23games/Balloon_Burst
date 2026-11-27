@@ -10,6 +10,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:balloon_burst/debug/debug_controller.dart'; // kept for compatibility with AppRoot
 import 'package:balloon_burst/debug/debug_log.dart';
 import 'package:balloon_burst/game/game_state.dart';
+import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
+import 'package:balloon_burst/game/qa_tight_aura_glow.dart';
+import 'package:balloon_burst/debug/qa_android_window_frames.dart';
+import 'package:balloon_burst/debug/qa_ui_build_stats.dart';
+import 'package:balloon_burst/debug/qa_frame_request_binding.dart';
 import 'package:balloon_burst/game/balloon_spawner.dart';
 
 class DebugScreen extends StatefulWidget {
@@ -37,7 +42,7 @@ class DebugScreen extends StatefulWidget {
 class _DebugScreenState extends State<DebugScreen> {
   static const int _displayedLogLimit = 100;
 
-  String _buildDetailedReport(List<String> rawLogs) {
+  String _buildDetailedReport(List<String> rawLogs, {String androidFrameInfo = ''}) {
     final generatedAt = DateTime.now().toIso8601String();
 
     return '''
@@ -87,6 +92,17 @@ autoTapEverEnabled: ${widget.gameState.autoTapEverEnabled}
 autoTapActivationCount: ${widget.gameState.autoTapActivationCount}
 autoTapModeChangeCount: ${widget.gameState.autoTapModeChangeCount}
 performanceHitches: ${widget.gameState.perfHitchCount}
+qaGlowRenderer: ${QaTightAuraGlow.enabled ? QaTightAuraGlow.variant : QaGradientBalloonGlow.variant}
+${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
+${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
+${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
+${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
+${widget.gameState.qaUiBuildStats?.reportFields ?? ''}
+${widget.gameState.qaFrameSchedulerStats?.reportFields ?? ''}
+${QaFrameRequestBinding.active?.stats.reportFields ?? ''}
+${QaNativeHandoffFlags.enabled ? (QaFrameRequestBinding.active?.handoff.reportFields ?? '') : ''}
+${QaNativeHandoffFlags.enabled ? (QaFrameRequestBinding.active?.handoff.eventFields ?? '') : ''}
+$androidFrameInfo
 maximumCombinedSpeedMultiplier: ${widget.gameState.maxCombinedSpeedMultiplier.toStringAsFixed(2)}
 minimumEffectiveSpawnInterval: ${widget.gameState.minimumEffectiveSpawnInterval.isInfinite ? 'n/a' : widget.gameState.minimumEffectiveSpawnInterval.toStringAsFixed(2)}
 maximumSpawnBatch: ${widget.gameState.maximumSpawnBatch}
@@ -108,7 +124,14 @@ ${rawLogs.join('\n')}
   }
 
   Future<void> _copyDetailedReport(List<String> rawLogs) async {
-    final report = _buildDetailedReport(rawLogs);
+    if (QaNativeHandoffFlags.enabled) {
+      final probe = QaFrameRequestBinding.active;
+      if (probe != null) {
+        await probe.handoff.samplePhase('reportExport');
+      }
+    }
+    final androidFrameInfo = await QaAndroidWindowFrames.snapshot();
+    final report = _buildDetailedReport(rawLogs, androidFrameInfo: androidFrameInfo);
 
     await Clipboard.setData(ClipboardData(text: report));
 
@@ -119,7 +142,14 @@ ${rawLogs.join('\n')}
   }
 
   Future<void> _shareDetailedReport(List<String> rawLogs) async {
-    final report = _buildDetailedReport(rawLogs);
+    if (QaNativeHandoffFlags.enabled) {
+      final probe = QaFrameRequestBinding.active;
+      if (probe != null) {
+        await probe.handoff.samplePhase('reportExport');
+      }
+    }
+    final androidFrameInfo = await QaAndroidWindowFrames.snapshot();
+    final report = _buildDetailedReport(rawLogs, androidFrameInfo: androidFrameInfo);
     final dir = await getTemporaryDirectory();
     final stamp = DateTime.now()
         .toIso8601String()
@@ -138,6 +168,9 @@ ${rawLogs.join('\n')}
 
   @override
   Widget build(BuildContext context) {
+    final uiStats = widget.gameState.qaUiBuildStats;
+    final started = uiStats?.begin(QaUiBuildStage.debugHud);
+    try {
     // Authoritative logs now come from GameState -> DebugLog
     final rawLogs = widget.gameState.debugLogs;
     final logs = rawLogs.reversed
@@ -321,5 +354,8 @@ ${rawLogs.join('\n')}
         ],
       ),
     );
+    } finally {
+      if (started != null) uiStats!.end(QaUiBuildStage.debugHud, started);
+    }
   }
 }
