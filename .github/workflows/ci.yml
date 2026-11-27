@@ -38,8 +38,9 @@ jobs:
       - name: Verify Skyward World 1 unit tests
         run: |
           bash -n tools/build_apk_with_network_retry.sh
+          python3 tools/tj45n_correlate.py --self-test
           flutter pub get
-          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart
+          flutter test test/skyward_world_one_test.dart test/skyward_ui_test.dart test/skyward_lead_test.dart test/endless_main_menu_test.dart test/skyward_wind_test.dart test/skyward_ribbon_test.dart test/skyward_mixed_hazards_test.dart test/skyward_leadstorm_test.dart test/skyward_carnival_gate_test.dart test/frame_gap_stats_test.dart test/flutter_frame_timing_stats_test.dart test/qa_gradient_balloon_glow_test.dart test/qa_tight_aura_glow_test.dart test/game_update_timing_stats_test.dart test/frame_phase_slow_stats_test.dart test/qa_android_window_frames_test.dart test/qa_ui_build_stats_test.dart test/qa_frame_scheduler_stats_test.dart test/qa_wall_clock_correlation_test.dart test/qa_frame_request_stats_test.dart test/qa_native_handoff_calibration_test.dart test/qa_clock_epoch_integrity_test.dart
 
       # Trusted same-repo PRs and main can use the permanent signing key.
       # Forked PRs run tests but never receive or use signing secrets.
@@ -139,6 +140,150 @@ jobs:
             build/app/outputs/flutter-apk/app-release.apk \
             artifacts/balloon-burst-internal-qa.apk
 
+      - name: Build glow experiment QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-glow
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-glow-experiment.apk
+
+      - name: Build tight aura V2 internal QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-aura-v2
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-tight-aura-v2.apk
+
+      - name: Build frame-pacing diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-frame-diag
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-frame-pacing.apk
+
+      - name: Build frame-phase correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-frame-phases
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-frame-phases.apk
+
+      - name: Build Android presentation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-android-presentation
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-android-presentation.apk
+
+      - name: Build UI-build and navigation diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-ui-build
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-ui-build.apk
+
+      - name: Build frame-scheduler diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-frame-scheduler
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-frame-scheduler.apk
+
+      - name: Build wall-clock correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-wall-clock
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-wall-clock.apk
+
+      - name: Build framework frame-request correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-frame-request
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-frame-request.apk
+
+      - name: Build native-to-Flutter handoff QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-native-handoff
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-native-handoff.apk
+
+      - name: Build clock-epoch integrity QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-clock-epoch
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-clock-epoch.apk
+
+      - name: Build TJ-45N app-frame breadcrumbs QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BB_SIGNING_STORE_PASSWORD: ${{ secrets.BB_SIGNING_STORE_PASSWORD }}
+          BB_SIGNING_KEY_ALIAS: ${{ secrets.BB_SIGNING_KEY_ALIAS }}
+          BB_SIGNING_KEY_PASSWORD: ${{ secrets.BB_SIGNING_KEY_PASSWORD }}
+        run: |
+          flutter clean
+          flutter pub get
+          bash tools/build_apk_with_network_retry.sh qa-app-frame
+          cp build/app/outputs/flutter-apk/app-release.apk artifacts/balloon-burst-internal-qa-app-frame.apk
+
       - name: Verify signatures and incrementing versionCode
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
@@ -177,17 +322,65 @@ jobs:
           }
           public="artifacts/balloon-burst-public-release.apk"
           qa="artifacts/balloon-burst-internal-qa.apk"
+          glow="artifacts/balloon-burst-internal-qa-glow-experiment.apk"
+          aura="artifacts/balloon-burst-internal-qa-tight-aura-v2.apk"
+          diag="artifacts/balloon-burst-internal-qa-frame-pacing.apk"
+          phases="artifacts/balloon-burst-internal-qa-frame-phases.apk"
+          androidp="artifacts/balloon-burst-internal-qa-android-presentation.apk"
+          uibuild="artifacts/balloon-burst-internal-qa-ui-build.apk"
+          scheduler="artifacts/balloon-burst-internal-qa-frame-scheduler.apk"
+          wall="artifacts/balloon-burst-internal-qa-wall-clock.apk"
+          frame_request="artifacts/balloon-burst-internal-qa-frame-request.apk"
+          native_handoff="artifacts/balloon-burst-internal-qa-native-handoff.apk"
+          clock_epoch="artifacts/balloon-burst-internal-qa-clock-epoch.apk"
+          app_frame="artifacts/balloon-burst-internal-qa-app-frame.apk"
           public_cert="$(cert_sha "$public")"
           qa_cert="$(cert_sha "$qa")"
+          glow_cert="$(cert_sha "$glow")"
+          aura_cert="$(cert_sha "$aura")"
+          diag_cert="$(cert_sha "$diag")"
+          phases_cert="$(cert_sha "$phases")"
+          androidp_cert="$(cert_sha "$androidp")"
+          uibuild_cert="$(cert_sha "$uibuild")"
+          scheduler_cert="$(cert_sha "$scheduler")"
+          wall_cert="$(cert_sha "$wall")"
+          frame_request_cert="$(cert_sha "$frame_request")"
+          native_handoff_cert="$(cert_sha "$native_handoff")"
+          clock_epoch_cert="$(cert_sha "$clock_epoch")"
+          app_frame_cert="$(cert_sha "$app_frame")"
           public_version="$(version_code "$public")"
           qa_version="$(version_code "$qa")"
+          glow_version="$(version_code "$glow")"
+          aura_version="$(version_code "$aura")"
+          diag_version="$(version_code "$diag")"
+          phases_version="$(version_code "$phases")"
+          androidp_version="$(version_code "$androidp")"
+          uibuild_version="$(version_code "$uibuild")"
+          scheduler_version="$(version_code "$scheduler")"
+          wall_version="$(version_code "$wall")"
+          frame_request_version="$(version_code "$frame_request")"
+          native_handoff_version="$(version_code "$native_handoff")"
+          clock_epoch_version="$(version_code "$clock_epoch")"
+          app_frame_version="$(version_code "$app_frame")"
 
-          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" ]]; then
+          if [[ -z "$public_cert" || "$public_cert" != "$qa_cert" || "$public_cert" != "$glow_cert" || "$public_cert" != "$aura_cert" || "$public_cert" != "$diag_cert" || "$public_cert" != "$phases_cert" || "$public_cert" != "$androidp_cert" || "$public_cert" != "$uibuild_cert" || "$public_cert" != "$scheduler_cert" || "$public_cert" != "$wall_cert" || "$public_cert" != "$frame_request_cert" || "$public_cert" != "$native_handoff_cert" || "$public_cert" != "$clock_epoch_cert" || "$public_cert" != "$app_frame_cert" ]]; then
             echo "::error::Public and QA signing certificates differ or are missing."
             exit 1
           fi
           if [[ "$public_version" != "$GITHUB_RUN_NUMBER" ||
-                "$qa_version" != "$GITHUB_RUN_NUMBER" ]]; then
+                "$qa_version" != "$GITHUB_RUN_NUMBER" ||
+                "$glow_version" != "$GITHUB_RUN_NUMBER" ||
+                "$aura_version" != "$GITHUB_RUN_NUMBER" ||
+                "$diag_version" != "$GITHUB_RUN_NUMBER" ||
+                "$phases_version" != "$GITHUB_RUN_NUMBER" ||
+                "$androidp_version" != "$GITHUB_RUN_NUMBER" ||
+                "$uibuild_version" != "$GITHUB_RUN_NUMBER" ||
+                "$scheduler_version" != "$GITHUB_RUN_NUMBER" ||
+                "$wall_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$frame_request_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$native_handoff_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$clock_epoch_version" != "$GITHUB_RUN_NUMBER" ||
+                 "$app_frame_version" != "$GITHUB_RUN_NUMBER" ]]; then
             echo "::error::APK build numbers differ or are not the CI run number."
             exit 1
           fi
@@ -204,6 +397,102 @@ jobs:
         with:
           name: balloon-burst-public-release-apk
           path: artifacts/balloon-burst-public-release.apk
+          if-no-files-found: error
+
+      - name: Upload glow experiment QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-glow-experiment-apk
+          path: artifacts/balloon-burst-internal-qa-glow-experiment.apk
+          if-no-files-found: error
+
+      - name: Upload tight aura V2 QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-tight-aura-v2-apk
+          path: artifacts/balloon-burst-internal-qa-tight-aura-v2.apk
+          if-no-files-found: error
+
+      - name: Upload frame-pacing diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-frame-pacing-apk
+          path: artifacts/balloon-burst-internal-qa-frame-pacing.apk
+          if-no-files-found: error
+
+      - name: Upload frame-phase correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-frame-phases-apk
+          path: artifacts/balloon-burst-internal-qa-frame-phases.apk
+          if-no-files-found: error
+
+      - name: Upload Android presentation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-android-presentation-apk
+          path: artifacts/balloon-burst-internal-qa-android-presentation.apk
+          if-no-files-found: error
+
+      - name: Upload UI-build and navigation diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-ui-build-apk
+          path: artifacts/balloon-burst-internal-qa-ui-build.apk
+          if-no-files-found: error
+
+      - name: Upload frame-scheduler diagnostics QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-frame-scheduler-apk
+          path: artifacts/balloon-burst-internal-qa-frame-scheduler.apk
+          if-no-files-found: error
+
+      - name: Upload wall-clock correlation QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-wall-clock-apk
+          path: artifacts/balloon-burst-internal-qa-wall-clock.apk
+          if-no-files-found: error
+
+      - name: Upload framework frame-request QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-frame-request-apk
+          path: artifacts/balloon-burst-internal-qa-frame-request.apk
+          if-no-files-found: error
+
+      - name: Upload native-to-Flutter handoff QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-native-handoff-apk
+          path: artifacts/balloon-burst-internal-qa-native-handoff.apk
+          if-no-files-found: error
+
+      - name: Upload clock-epoch integrity QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-clock-epoch-apk
+          path: artifacts/balloon-burst-internal-qa-clock-epoch.apk
+          if-no-files-found: error
+
+      - name: Upload TJ-45N app-frame QA APK (NOT FOR RELEASE)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: balloon-burst-internal-qa-app-frame-apk
+          path: artifacts/balloon-burst-internal-qa-app-frame.apk
           if-no-files-found: error
 
       - name: Upload internal QA APK

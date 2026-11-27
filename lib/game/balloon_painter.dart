@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:balloon_burst/game/game_state.dart';
 import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/game/balloon_type.dart';
+import 'package:balloon_burst/game/qa_gradient_balloon_glow.dart';
+import 'package:balloon_burst/game/qa_tight_aura_glow.dart';
 
 class BalloonPainter extends CustomPainter {
   final List<Balloon> balloons;
@@ -436,6 +438,32 @@ class BalloonPainter extends CustomPainter {
         : streak >= 20
             ? const Color(0xFFFFC107)
             : const Color(0xFFFFF59D);
+
+    // V2 only in its explicitly labeled QA build; V1 and original are intact.
+    if (QaTightAuraGlow.enabled) {
+      QaTightAuraGlow.paint(
+        canvas: canvas,
+        center: center,
+        glowRadius: glowRadius,
+        sigma: glowBlur,
+        color: glowColor,
+        opacity: glowOpacity,
+      );
+      return;
+    }
+
+    // QA-only alternate; production keeps the exact original blur below.
+    if (QaGradientBalloonGlow.enabled) {
+      QaGradientBalloonGlow.paint(
+        canvas: canvas,
+        center: center,
+        glowRadius: glowRadius,
+        sigma: glowBlur,
+        color: glowColor,
+        opacity: glowOpacity,
+      );
+      return;
+    }
 
     final glowPaint = Paint()
       ..color = glowColor.withOpacity(glowOpacity)

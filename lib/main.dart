@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'state/app_state.dart';
 import 'screens/start_screen.dart';
 import 'app_root.dart';
+import 'debug/qa_frame_request_binding.dart';
 
 import 'package:balloon_burst/tj_engine/engine/tj_engine.dart';
 import 'package:balloon_burst/audio/audio_player.dart';
@@ -13,6 +14,11 @@ import 'package:balloon_burst/skyward/world_one.dart';
 import 'package:balloon_burst/skyward/skyward_select_screen.dart';
 
 void main() {
+  // QA-only: install the observing binding BEFORE runApp, so that it
+  // timestamps existing frame requests without requesting any new frames.
+  if (QaFrameRequestFlags.enabled) {
+    QaFrameRequestBinding();
+  }
   runApp(const BalloonBurstApp());
 }
 
