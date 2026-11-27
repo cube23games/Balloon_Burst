@@ -82,26 +82,37 @@ def parse_report(raw):
         raise ValueError("missing gameplay duration")
     observations = []
     for line in raw.splitlines():
-        if not line.startswith("qaNativeHandoffWorstWait["):
+        if not line.startswith("qaAppFrameTraceMarker["):
             continue
-        get = lambda name: re.search(r"\b" + name + r"=([^ ]+)", line)
-        status = get("qaEpochMappingStatus")
-        if not status or status.group(1) != "provisional-runStart-before-lifecycle":
-            continue
-        boot = get("beginBootNs")
-        frame_id = get("frameId")
-        wait = get("requestToBeginUs")
-        if not (boot and frame_id and wait):
-            continue
-        stamp = int(boot.group(1))
-        if stamp < zero or stamp > zero + export_mid * 1000:
-            continue
-        observations.append({"frame_id": int(frame_id.group(1)),
+        def field(name):
+            hit = re.search(r"\\b" + name + r"=([^ ]+)", line)
+            if hit is None:
+                raise ValueError("incomplete marker record: " + name)
+            return hit.group(1)
+        frame_id = int(field("frameId"))
+        wait_us = int(field("requestToBeginUs"))
+        begin_us = int(field("dartBeginUs"))
+        stamp = zero + begin_us * 1000
+        if frame_id <= 0 or wait_us < 35714 or not zero <= stamp <= zero + export_mid * 1000:
+            raise ValueError("unsafe marker timing or identity")
+        observations.append({"frame_id": frame_id,
                              "begin_boot_ns": stamp,
-                             "wait_ms": int(wait.group(1)) / 1000})
+                             "wait_ms": wait_us / 1000,
+                             "native_status": field("status"),
+                             "native_receipt_boot_ns": int(field("nativeReceiptBootNs"))})
+    if len(observations) > 32 or len({x["frame_id"] for x in observations}) != len(observations):
+        raise ValueError("duplicate or excessive marker IDs")
+    if int(read("qaAppFrameTraceSubmitted", "-1")) != len(observations):
+        raise ValueError("submitted marker count does not equal retained IDs")
     return {"run_id": read("runId"), "zero_boot_ns": zero,
             "duration_s": duration_s, "export_end_ns": zero + export_mid * 1000,
             "observations": observations[:MAX_RECORDS]}
+
+
+def read_native_markers(path):
+    # Name-presence evidence, not proof of frame presentation.
+    return [int(x) for x in re.findall(rb"TJ45N_f([0-9]+)_w[0-9]+",
+                                         Path(path).read_bytes())]
 
 
 def read_display_events(path, start_ns, stop_ns):
@@ -132,7 +143,7 @@ def read_display_events(path, start_ns, stop_ns):
     return items
 
 
-def correlate(report, events):
+def correlate(report, events, marker_ids=()):
     on_time = sum(e["presentation_type"] == 1 for e in events)
     late = sum(e["presentation_type"] == 2 for e in events)
     unknown = len(events) - on_time - late
@@ -142,7 +153,10 @@ def correlate(report, events):
         nearest = nearby[0] if nearby else None
         delta_ms = ((nearest["boot_ns"] - obs["begin_boot_ns"]) / 1e6
                     if nearest else None)
+        count = marker_ids.count(obs["frame_id"])
         rows.append({**obs,
+                     "native_marker_in_trace": count > 0,
+                     "marker_status": "PRESENT" if count == 1 else "DUPLICATED" if count > 1 else "MISSING",
                      "nearest_display_event_delta_ms": delta_ms,
                      "nearest_display_presentation_type": (
                          nearest["presentation_type"] if nearest else None),
@@ -151,6 +165,8 @@ def correlate(report, events):
     return {"scope": "display-wide, not app surface",
             "counts": {"on_time": on_time, "late": late, "other": unknown},
             "app_presentation_status": "UNPROVEN",
+            "trace_marker_count": len(marker_ids),
+            "missing_reported_markers": sum(r["marker_status"] == "MISSING" for r in rows),
             "reason": "No verified Flutter-frame to Android Surface frame token.",
             "candidates": rows}
 
@@ -187,6 +203,33 @@ def self_test():
         pass
     else:
         raise AssertionError("clock discontinuity must fail closed")
+    assert correlate(demo, [], [3])["candidates"][0]["marker_status"] == "PRESENT"
+    assert correlate(demo, [], [])["missing_reported_markers"] == 1
+    assert correlate(demo, [], [3, 3])["candidates"][0]["marker_status"] == "DUPLICATED"
+    fixture = "\\n".join([
+        "qaClockEpochIntegrityDiagnostic: enabled",
+        "qaClockEpochDiscontinuity: notDetected",
+        "qaClockEpochLifecycleMarkCount: 0",
+        "qaClockEpochLifecycleMarkOverflow: 0",
+        "qaNativeHandoffrunStartBootAtDartZeroNs: 1000000000",
+        "qaNativeHandoffrunStartDartMidUs: 100",
+        "qaNativeHandoffreportExportDartMidUs: 1000000",
+        "engineElapsedSeconds: 0.8",
+        "qaAppFrameTraceSubmitted: 1",
+        "qaAppFrameTraceMarker[0]: frameId=3 sample=3 dartRequestUs=400 "
+        "dartBeginUs=51000 dartTickerUs=51020 requestToBeginUs=50600 "
+        "status=emitted nativeReceiptBootNs=1051050000",
+    ])
+    assert parse_report(fixture)["observations"][0]["frame_id"] == 3
+    for bad in (fixture.replace("Submitted: 1", "Submitted: 2"),
+                fixture.replace("notDetected", "detected"),
+                fixture.replace("LifecycleMarkCount: 0", "LifecycleMarkCount: 1")):
+        try:
+            parse_report(bad)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid report must fail closed")
     print("TJ-45N self-test PASS")
 
 
@@ -205,8 +248,9 @@ def main():
     events = read_display_events(args.trace, info["zero_boot_ns"],
                                  info["zero_boot_ns"] +
                                  int(info["duration_s"] * 1e9))
+    markers = read_native_markers(args.trace)
     print(json.dumps({"run_id": info["run_id"],
-                      **correlate(info, events)}, indent=2))
+                      **correlate(info, events, markers)}, indent=2))
 
 
 if __name__ == "__main__":
