@@ -64,17 +64,58 @@ void main() {
     expect(s.reportFields, contains('qaFrameRequestCount: 0'));
   });
 
-  test('TJ-45N bounds slow-frame IDs and reset clears counters', () {
+  test('TJ-45N retains exactly the marker IDs submitted to native', () {
     final s = QaFrameRequestStats()..reset();
-    for (var i = 0; i < QaFrameRequestStats.maxSlowFrameMarkerSubmissions; i++) {
-      expect(s.recordQaSlowFrameMarkerSubmission(), isTrue);
+    int? firstGeneration;
+    for (var i = 1; i <= 35; i++) {
+      s.recordRequest(i * 100000);
+      s.recordBegin(i * 100000 + 40000, i * 16667);
+      final obs = s.recordTicker(tickerSample: i,
+          wallUs: i * 100000 + 40020, rawStampUs: i * 16667);
+      expect(obs, isNotNull);
+      final token = s.reserveQaSlowFrameMarker(obs!);
+      if (i <= 32) {
+        expect(token, isNotNull);
+        firstGeneration ??= token;
+      } else {
+        expect(token, isNull);
+      }
     }
-    expect(s.recordQaSlowFrameMarkerSubmission(), isFalse);
-    expect(s.qaSlowFrameMarkerSubmissions, 32);
-    expect(s.reportFields, contains('qaAppFrameTraceSubmitted: 32'));
+    expect(s.qaAppMarkers.length, 32);
+    expect(s.qaAppMarkers.first.observation.frameId, 1);
+    expect(s.qaAppMarkers.last.observation.frameId, 32);
+    expect(s.qaAppFrameOverflow, 3);
+    expect(s.reportFields, contains('qaAppFrameTraceMarker[0]: frameId=1'));
+    expect(s.reportFields, contains('qaAppFrameTraceMarker[31]: frameId=32'));
+    s.completeQaSlowFrameMarker(1, firstGeneration!, 'emitted',
+        nativeBootNs: 9999999);
+    s.completeQaSlowFrameMarker(2, firstGeneration, 'disabled');
+    s.completeQaSlowFrameMarker(3, firstGeneration, 'rejected');
+    s.completeQaSlowFrameMarker(4, firstGeneration, 'failed');
+    // A second reply for the same ID cannot double-count.
+    s.completeQaSlowFrameMarker(1, firstGeneration, 'emitted');
+    expect(s.qaAppFrameAcknowledged, 4);
+    expect(s.qaAppFrameTraceEnabled, 1);
+    expect(s.qaAppFrameTraceDisabled, 1);
+    expect(s.qaAppFrameNativeRejected, 1);
+    expect(s.qaAppFrameFailures, 1);
+    expect(s.reportFields, contains('status=emitted nativeReceiptBootNs=9999999'));
+    expect(s.reportFields, contains('qaAppFrameTracePending: 28'));
     s.reset();
-    expect(s.qaSlowFrameMarkerSubmissions, 0);
-    expect(s.recordQaSlowFrameMarkerSubmission(), isTrue);
+    s.completeQaSlowFrameMarker(1, firstGeneration, 'emitted');
+    expect(s.qaAppFrameAcknowledged, 0);
+    expect(s.qaAppMarkers, isEmpty);
+    expect(s.qaAppFrameOverflow, 0);
+  });
+
+  test('TJ-45N rejects under-threshold markers and missing receipts', () {
+    final s = QaFrameRequestStats()..reset();
+    final notSlow = QaFrameRequestObservation(frameId: 10,
+        tickerSample: 10, requestUs: 1000, beginUs: 4000,
+        tickerUs: 4010, rawEngineStampUs: 9000, engineGapUs: 16667,
+        wallGapUs: 3000);
+    expect(s.reserveQaSlowFrameMarker(notSlow), isNull);
+    expect(s.qaAppMarkers, isEmpty);
   });
 
   test('pause cannot join a stale request or ticker clock', () {
