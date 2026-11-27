@@ -7,7 +7,10 @@ import 'package:balloon_burst/gameplay/balloon.dart';
 class BalloonSpawner {
   double _timer = 0.0;
   int _spawnCount = 0;
-  final Random _rng = Random();
+  final int? benchmarkSeed;
+  late Random _rng = Random(benchmarkSeed);
+
+  BalloonSpawner({this.benchmarkSeed});
 
   double spawnInterval = 1.2;
 
@@ -468,6 +471,7 @@ class BalloonSpawner {
   }
 
   void resetForNewRun() {
+    if (benchmarkSeed != null) _rng = Random(benchmarkSeed);
     _timer = 0.0;
     _spawnCount = 0;
     spawnInterval = worldSpawnInterval[1]!;
