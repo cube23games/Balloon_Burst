@@ -93,7 +93,7 @@ autoTapActivationCount: ${widget.gameState.autoTapActivationCount}
 autoTapModeChangeCount: ${widget.gameState.autoTapModeChangeCount}
 performanceHitches: ${widget.gameState.perfHitchCount}
 qaGlowRenderer: ${QaTightAuraGlow.enabled ? QaTightAuraGlow.variant : QaGradientBalloonGlow.variant}
-${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
+${widget.gameState.qaPaintCostStats?.reportFields ?? ''}\n${widget.gameState.qaFrameGapStats?.reportFields ?? ''}
 ${widget.gameState.qaFlutterFrameTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaGameUpdateTimingStats?.reportFields ?? ''}
 ${widget.gameState.qaFramePhaseSlowStats?.reportFields ?? ''}
