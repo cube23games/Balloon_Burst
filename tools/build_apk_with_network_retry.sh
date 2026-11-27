@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
   echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa|qa-glow|qa-aura-v2|qa-frame-diag|qa-frame-phases|qa-android-presentation|qa-ui-build|qa-frame-scheduler|qa-wall-clock|qa-frame-request|qa-native-handoff|qa-clock-epoch|qa-app-frame" >&2
   exit 64
 fi
-if [[ "$1" != public && "$1" != qa && "$1" != qa-glow && "$1" != qa-aura-v2 && "$1" != qa-frame-diag && "$1" != qa-frame-phases && "$1" != qa-android-presentation && "$1" != qa-ui-build && "$1" != qa-frame-scheduler && "$1" != qa-wall-clock && "$1" != qa-frame-request && "$1" != qa-native-handoff && "$1" != qa-clock-epoch ]]; then
+if [[ "$1" != public && "$1" != qa && "$1" != qa-glow && "$1" != qa-aura-v2 && "$1" != qa-frame-diag && "$1" != qa-frame-phases && "$1" != qa-android-presentation && "$1" != qa-ui-build && "$1" != qa-frame-scheduler && "$1" != qa-wall-clock && "$1" != qa-frame-request && "$1" != qa-native-handoff && "$1" != qa-clock-epoch && "$1" != qa-app-frame ]]; then
   echo "Usage: bash tools/build_apk_with_network_retry.sh public|qa|qa-glow|qa-aura-v2|qa-frame-diag|qa-frame-phases|qa-android-presentation|qa-ui-build|qa-frame-scheduler|qa-wall-clock|qa-frame-request|qa-native-handoff|qa-clock-epoch|qa-app-frame" >&2
   exit 64
 fi
