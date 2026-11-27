@@ -6,12 +6,19 @@ import 'qa_native_handoff_calibration.dart';
 class QaFrameRequestFlags {
   static const bool enabled = kEnableQaAutoTap &&
       (bool.fromEnvironment('TJ45K_FRAME_REQUEST', defaultValue: false) ||
-       bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false));
+       bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false) ||
+       bool.fromEnvironment('TJ45M_CLOCK_EPOCH', defaultValue: false));
 }
 
 class QaNativeHandoffFlags {
   static const bool enabled = QaFrameRequestFlags.enabled &&
-      bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false);
+      (bool.fromEnvironment('TJ45L_NATIVE_HANDOFF', defaultValue: false) ||
+       bool.fromEnvironment('TJ45M_CLOCK_EPOCH', defaultValue: false));
+}
+
+class QaClockEpochFlags {
+  static const bool enabled = QaNativeHandoffFlags.enabled &&
+      bool.fromEnvironment('TJ45M_CLOCK_EPOCH', defaultValue: false);
 }
 
 /// Observe the *existing* Flutter framework frame requests and begins.

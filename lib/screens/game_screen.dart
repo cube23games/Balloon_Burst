@@ -535,6 +535,9 @@ class _GameScreenState extends State<GameScreen>
 
     _qaSchedulerStats?.markLifecycle('nativePause');
     QaFrameRequestBinding.active?.stats.markLifecycle();
+    if (QaClockEpochFlags.enabled) {
+      QaFrameRequestBinding.active?.handoff.markLifecycle('nativePause');
+    }
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = true;
     _resumeGraceUntil = null;
@@ -569,6 +572,9 @@ class _GameScreenState extends State<GameScreen>
 
     _qaSchedulerStats?.markLifecycle('flutterPause');
     QaFrameRequestBinding.active?.stats.markLifecycle();
+    if (QaClockEpochFlags.enabled) {
+      QaFrameRequestBinding.active?.handoff.markLifecycle('flutterPause');
+    }
     _isLifecyclePaused = true;
     _showLifecyclePauseOverlay = showOverlayImmediately;
     _resumeGraceUntil = null;
@@ -596,6 +602,9 @@ class _GameScreenState extends State<GameScreen>
     final shouldUseGrace = _showLifecyclePauseOverlay;
     _qaSchedulerStats?.markLifecycle('resumeGraceOrSilent');
     QaFrameRequestBinding.active?.stats.markLifecycle();
+    if (QaClockEpochFlags.enabled) {
+      QaFrameRequestBinding.active?.handoff.markLifecycle('resumeGraceOrSilent');
+    }
 
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
@@ -622,6 +631,9 @@ class _GameScreenState extends State<GameScreen>
 
     _qaSchedulerStats?.markLifecycle('nativeSilentResume');
     QaFrameRequestBinding.active?.stats.markLifecycle();
+    if (QaClockEpochFlags.enabled) {
+      QaFrameRequestBinding.active?.handoff.markLifecycle('nativeSilentResume');
+    }
     _isLifecyclePaused = false;
     _showLifecyclePauseOverlay = false;
     _resumeGraceUntil = null;
@@ -1577,6 +1589,15 @@ class _GameScreenState extends State<GameScreen>
 
     widget.gameState.clearLogs();
     widget.gameState.resetRunEvidence();
+    if (QaClockEpochFlags.enabled) {
+      // Replays in the same app session must not inherit old clock epochs.
+      final frameProbe = QaFrameRequestBinding.active;
+      if (frameProbe != null) {
+        frameProbe.stats.reset();
+        frameProbe.handoff.reset();
+        unawaited(frameProbe.handoff.samplePhase('runStart'));
+      }
+    }
 
     _previousShieldState = false;
     _perfHitchCount = 0;

@@ -19,17 +19,43 @@ class QaHandoffAnchor {
   int atBootNs(int dartUs) => bootAtZeroNs + dartUs * 1000;
 }
 
+
+/// A lifecycle transition ordered by the Dart Stopwatch.
+/// Not independent proof of a native suspend or its duration.
+class QaClockEpochBoundary {
+  const QaClockEpochBoundary(this.dartUs, this.reason);
+  final int dartUs;
+  final String reason;
+}
+
+/// Fail-closed mapping decision. Null anchor means no cross-clock estimate.
+class QaClockEpochDecision {
+  const QaClockEpochDecision(this.anchor, this.status);
+  final QaHandoffAnchor? anchor;
+  final String status;
+}
+
 /// Two bounded QA-only sampling bursts: early and on report export.
 /// Native frame-delivery timing must still be read from Perfetto, not here.
 class QaNativeHandoffCalibration {
-  QaNativeHandoffCalibration(this.frameStats);
+  QaNativeHandoffCalibration(this.frameStats, {
+    this.epochGuardEnabled = const bool.fromEnvironment(
+        'TJ45M_CLOCK_EPOCH', defaultValue: false),
+  });
+  /// Legacy TJ-45L remains unchanged; TJ-45M is explicitly opt-in.
+  final bool epochGuardEnabled;
   static const int probesPerPhase = 9;
+  static const int maxLifecycleMarks = 16;
+  /// 50ms is deliberately greater than native timestamp sampling noise.
+  static const int discontinuityThresholdNs = 50000000;
   static const MethodChannel _channel =
       MethodChannel('com.cube23.balloonburst/lifecycle');
   final QaFrameRequestStats frameStats;
   final Map<String, QaHandoffAnchor> _best = {};
   final Map<String, int> _attempts = {}, _valid = {};
   final Set<String> _inFlight = {};
+  final List<QaClockEpochBoundary> _lifecycleMarks = [];
+  int lifecycleOverflow = 0;
   int _generation = 0;
   int failures = 0;
 
@@ -39,10 +65,74 @@ class QaNativeHandoffCalibration {
     _attempts.clear();
     _valid.clear();
     _inFlight.clear();
+    _lifecycleMarks.clear();
+    lifecycleOverflow = 0;
     failures = 0;
   }
 
   QaHandoffAnchor? anchorFor(String phase) => _best[phase];
+
+  List<QaClockEpochBoundary> get lifecycleMarks =>
+      List<QaClockEpochBoundary>.unmodifiable(_lifecycleMarks);
+
+  void markLifecycle(String reason) =>
+      markLifecycleAt(reason, frameStats.clockUs);
+
+  /// Testable explicit timestamp: production passes the live Dart Stopwatch.
+  void markLifecycleAt(String reason, int dartUs) {
+    if (!epochGuardEnabled || dartUs < 0) return;
+    if (_lifecycleMarks.length >= maxLifecycleMarks) {
+      lifecycleOverflow++;
+      return;
+    }
+    _lifecycleMarks.add(QaClockEpochBoundary(dartUs, reason));
+  }
+
+  int? get bootMinusMonoJumpNs {
+    final a = _best['runStart'], b = _best['reportExport'];
+    if (a == null || b == null) return null;
+    return b.bootMinusMonoNs - a.bootMinusMonoNs;
+  }
+
+  bool? get clockEpochDiscontinuity {
+    final delta = bootMinusMonoJumpNs;
+    if (delta == null) return null;
+    return delta.abs() >= discontinuityThresholdNs;
+  }
+
+  /// No interpolated clock conversions across a suspected suspend.
+  /// If there is no lifecycle boundary and an offset jumped, the epoch
+  /// transition cannot be localized, so decline ALL absolute estimates.
+  QaClockEpochDecision resolveEvent(int dartUs) {
+    if (!epochGuardEnabled) {
+      return QaClockEpochDecision(bestAt(dartUs), 'legacy-nearest-anchor');
+    }
+    final early = _best['runStart'], late = _best['reportExport'];
+    if (early == null) {
+      return const QaClockEpochDecision(null, 'unmapped-no-runStart-anchor');
+    }
+    if (dartUs < early.dartMidUs) {
+      return const QaClockEpochDecision(null, 'unmapped-before-runStart-anchor');
+    }
+    if (late != null && late.dartMidUs <= early.dartMidUs) {
+      return const QaClockEpochDecision(null, 'unmapped-anchor-order-invalid');
+    }
+    if (late != null && dartUs >= late.dartMidUs) {
+      return const QaClockEpochDecision(null, 'unmapped-at-or-after-export');
+    }
+    if (_lifecycleMarks.isNotEmpty) {
+      if (early.dartMidUs >= _lifecycleMarks.first.dartUs) {
+        return const QaClockEpochDecision(null, 'unmapped-runStart-after-lifecycle');
+      }
+      if (dartUs >= _lifecycleMarks.first.dartUs) {
+        return const QaClockEpochDecision(null, 'unmapped-after-first-lifecycle');
+      }
+    } else if (clockEpochDiscontinuity == true) {
+      return const QaClockEpochDecision(null, 'unmapped-clock-jump-without-boundary');
+    }
+    return QaClockEpochDecision(
+        early, 'provisional-runStart-before-lifecycle');
+  }
 
   bool recordSample({
     required String phase, required int beforeUs, required int afterUs,
@@ -141,6 +231,21 @@ class QaNativeHandoffCalibration {
     }
     lines.add('qaNativeHandoffOffsetDriftNs: ${a == null || b == null ? 'n/a' : b.bootAtZeroNs - a.bootAtZeroNs}');
     lines.add('qaNativeHandoffBootMinusMonoDriftNs: ${a == null || b == null ? 'n/a' : b.bootMinusMonoNs - a.bootMinusMonoNs}');
+    if (epochGuardEnabled) {
+      final jump = clockEpochDiscontinuity;
+      lines.add('qaClockEpochIntegrityDiagnostic: enabled');
+      lines.add('qaClockEpochMappingPolicy: earlyAnchorOnly-beforeFirstLifecycle');
+      lines.add('qaClockEpochDiscontinuityThresholdNs: $discontinuityThresholdNs');
+      lines.add('qaClockEpochDiscontinuity: ${jump == null ? 'unknown' : jump ? 'detected' : 'notDetected'}');
+      lines.add('qaClockEpochBootMinusMonoJumpNs: ${bootMinusMonoJumpNs ?? 'n/a'}');
+      lines.add('qaClockEpochLifecycleMarkCount: ${_lifecycleMarks.length}');
+      lines.add('qaClockEpochLifecycleMarkOverflow: $lifecycleOverflow');
+      lines.add('qaClockEpochFirstLifecycleUs: ${_lifecycleMarks.isEmpty ? -1 : _lifecycleMarks.first.dartUs}');
+      for (var i = 0; i < _lifecycleMarks.length; i++) {
+        final e = _lifecycleMarks[i];
+        lines.add('qaClockEpochLifecycle[$i]: dartUs=${e.dartUs} reason=${e.reason}');
+      }
+    }
     return lines.join('\n');
   }
 
@@ -148,9 +253,12 @@ class QaNativeHandoffCalibration {
     final lines = <String>[];
     void add(String label, List<QaFrameRequestObservation> events) {
       for (var i = 0; i < events.length; i++) {
-        final s = events[i], a = bestAt(s.beginUs);
+        final s = events[i];
+        final decision = resolveEvent(s.beginUs);
+        final a = decision.anchor;
         lines.add('$label[$i]: sample=${s.tickerSample} frameId=${s.frameId} '
-          'calibrationPhase=${a?.phase ?? 'missing'} '
+          'calibrationPhase=${a?.phase ?? 'unmapped'} '
+          'qaEpochMappingStatus=${decision.status} '
           'requestBootNs=${s.requestUs == null || a == null ? -1 : a.atBootNs(s.requestUs!)} '
           'beginBootNs=${a?.atBootNs(s.beginUs) ?? -1} '
           'tickerBootNs=${a?.atBootNs(s.tickerUs) ?? -1} '
