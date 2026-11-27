@@ -418,8 +418,10 @@ class _GameScreenState extends State<GameScreen>
       });
       final status = reply?['status'];
       final bootNs = reply?['nativeReceiptBootNs'];
+      final echoedId = reply?['frameId'];
       stats.completeQaSlowFrameMarker(observation.frameId, generation,
-          status is String ? status : 'failed',
+          echoedId == observation.frameId && status is String
+              ? status : 'failed',
           nativeBootNs: bootNs is int ? bootNs : -1);
     } catch (_) {
       stats.completeQaSlowFrameMarker(
