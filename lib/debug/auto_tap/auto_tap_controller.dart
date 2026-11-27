@@ -42,16 +42,21 @@ class AutoTapController {
   AutoTapController({
     this.enabled = false,
     this.mode = AutoTapMode.clean,
+    this.benchmarkSeed,
   });
 
   bool enabled;
   AutoTapMode mode;
 
-  final Random _random = Random();
+  final int? benchmarkSeed;
+  late Random _random = Random(benchmarkSeed);
+  int? _lastBenchmarkTapMs;
   DateTime? _lastTapAt;
 
   void reset() {
     _lastTapAt = null;
+    _lastBenchmarkTapMs = null;
+    if (benchmarkSeed != null) _random = Random(benchmarkSeed);
   }
 
   void update({
@@ -59,6 +64,7 @@ class AutoTapController {
     required Size lastSize,
     required List<Balloon> balloons,
     required ValueChanged<Offset> onTapAt,
+    int? benchmarkElapsedMs,
   }) {
     if (!kDebugMode && !kEnableQaAutoTap) return;
     if (!enabled) return;
@@ -66,10 +72,15 @@ class AutoTapController {
     if (lastSize == Size.zero) return;
     if (balloons.isEmpty) return;
 
+    final benchmark = benchmarkSeed != null;
+    if (benchmark && (benchmarkElapsedMs == null || benchmarkElapsedMs < 0)) return;
     final now = DateTime.now();
-    final reactionMs = _reactionMs();
+    // Fixed cadence avoids consuming random numbers on rejected frames.
+    final reactionMs = benchmark ? 100 : _reactionMs();
+    if (benchmark && _lastBenchmarkTapMs != null &&
+        benchmarkElapsedMs! - _lastBenchmarkTapMs! < reactionMs) return;
 
-    if (_lastTapAt != null &&
+    if (!benchmark && _lastTapAt != null &&
         now.difference(_lastTapAt!).inMilliseconds < reactionMs) {
       return;
     }
@@ -79,6 +90,7 @@ class AutoTapController {
 
     if (_shouldSkipTap()) {
       _lastTapAt = now;
+      if (benchmark) _lastBenchmarkTapMs = benchmarkElapsedMs;
       return;
     }
 
@@ -89,6 +101,7 @@ class AutoTapController {
 
     onTapAt(tapPoint);
     _lastTapAt = now;
+    if (benchmark) _lastBenchmarkTapMs = benchmarkElapsedMs;
   }
 
   Balloon? _pickTarget(List<Balloon> balloons) {
