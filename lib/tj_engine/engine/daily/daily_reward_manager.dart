@@ -23,16 +23,18 @@ class DailyRewardManager {
   static const String _storageKeyLastClaim = 'tj_daily_last_claim_iso_v1';
 
   final NowProvider _clock;
+  final bool persistenceEnabled;
 
   DateTime? _lastClaimTime;
 
-  DailyRewardManager({NowProvider? clock})
+  DailyRewardManager({NowProvider? clock, this.persistenceEnabled = true})
       : _clock = clock ?? SystemNowProvider();
 
   /// ============================================================
   /// Load persisted state (call once at app start).
   /// ============================================================
   Future<void> load() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final iso = prefs.getString(_storageKeyLastClaim);
@@ -58,6 +60,7 @@ class DailyRewardManager {
   /// Persist current state (internal).
   /// ============================================================
   Future<void> _persist() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final value = _lastClaimTime?.toUtc().toIso8601String();
