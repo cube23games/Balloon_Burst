@@ -12,12 +12,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class WalletManager {
   static const String _storageKey = 'tj_wallet_balance_v1';
 
+  WalletManager({this.persistenceEnabled = true});
+
+  final bool persistenceEnabled;
+
   int _balance = 0;
 
   int get balance => _balance;
 
   /// Load persisted balance.
   Future<void> load() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       _balance = prefs.getInt(_storageKey) ?? 0;
@@ -28,6 +33,7 @@ class WalletManager {
 
   /// Persist current balance.
   Future<void> _persist() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_storageKey, _balance);

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'package:balloon_burst/game/game_state.dart';
+import 'package:balloon_burst/debug/qa_paint_cost_stats.dart';
 import 'package:balloon_burst/game/balloon_painter.dart';
 import 'package:balloon_burst/gameplay/balloon.dart';
 import 'package:balloon_burst/screens/game/effects/miss_popup.dart';
@@ -355,12 +356,20 @@ class _GameCanvasState extends State<GameCanvas>
     );
   }
 
+  CustomPainter _qaPaintWrapper(CustomPainter delegate, String category) {
+    final stats = widget.gameState.qaPaintCostStats;
+    return stats == null
+        ? delegate
+        : _QaMeasuredPainter(delegate, stats, category);
+  }
+
   Widget _buildParticlesOverlay() {
     if (widget.particles.isEmpty) return const SizedBox.shrink();
 
     return IgnorePointer(
       child: CustomPaint(
-        painter: _ParticlesPainter(widget.particles),
+        painter: _qaPaintWrapper(
+          _ParticlesPainter(widget.particles), QaPaintCostStats.particles),
         size: Size.infinite,
       ),
     );
@@ -371,13 +380,13 @@ class _GameCanvasState extends State<GameCanvas>
 
     return IgnorePointer(
       child: CustomPaint(
-        painter: _ScoreBurstsPainter(
+        painter: _qaPaintWrapper(_ScoreBurstsPainter(
           bursts: widget.scoreBursts,
           burstColor: _burstColor(),
           perfectColor: _perfectBurstColor(),
           burstShadows: _burstShadows(),
           perfectShadows: _perfectBurstShadows(),
-        ),
+        ), QaPaintCostStats.scoreBursts),
         size: Size.infinite,
       ),
     );
@@ -423,7 +432,8 @@ class _GameCanvasState extends State<GameCanvas>
 
     return IgnorePointer(
       child: CustomPaint(
-        painter: _ShockwavePainter(widget.shockwaves),
+        painter: _qaPaintWrapper(
+          _ShockwavePainter(widget.shockwaves), QaPaintCostStats.shockwaves),
         size: Size.infinite,
       ),
     );
@@ -651,6 +661,28 @@ class _GameCanvasState extends State<GameCanvas>
         ),
       ),
     );
+  }
+}
+
+/// TJ-45O-A: wraps the existing painter only in the explicit diagnostic APK.
+/// No extra layer, repaint callback, raster thread timing or frame scheduling.
+class _QaMeasuredPainter extends CustomPainter {
+  final CustomPainter delegate;
+  final QaPaintCostStats stats;
+  final String category;
+  _QaMeasuredPainter(this.delegate, this.stats, this.category);
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      stats.measure(category, () => delegate.paint(canvas, size));
+
+  @override
+  bool shouldRepaint(covariant _QaMeasuredPainter oldDelegate) {
+    if (delegate.runtimeType != oldDelegate.delegate.runtimeType ||
+        category != oldDelegate.category) {
+      return true;
+    }
+    return delegate.shouldRepaint(oldDelegate.delegate);
   }
 }
 

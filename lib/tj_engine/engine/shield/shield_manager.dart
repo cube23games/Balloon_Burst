@@ -7,6 +7,10 @@ class ShieldManager implements ShieldAccess {
   static const String _pendingKey = 'tj_shield_pending_v1';
   static const String _activeKey = 'tj_shield_active_v1';
 
+  ShieldManager({this.persistenceEnabled = true});
+
+  final bool persistenceEnabled;
+
   bool _pending = false;
   bool _active = false;
 
@@ -17,6 +21,7 @@ class ShieldManager implements ShieldAccess {
   bool get isActive => _active;
 
   Future<void> load() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       _pending = prefs.getBool(_pendingKey) ?? false;
@@ -28,6 +33,7 @@ class ShieldManager implements ShieldAccess {
   }
 
   Future<void> _persist() async {
+    if (!persistenceEnabled) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_pendingKey, _pending);
