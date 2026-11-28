@@ -6,11 +6,16 @@ class LeaderboardManager {
   static const _storageKey = 'tj_leaderboard_v1';
   static const int maxEntries = 10;
 
+  LeaderboardManager({this.persistenceEnabled = true});
+
+  final bool persistenceEnabled;
+
   List<LeaderboardEntry> _entries = [];
 
   List<LeaderboardEntry> get entries => List.unmodifiable(_entries);
 
   Future<void> load() async {
+    if (!persistenceEnabled) return;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
 
@@ -63,6 +68,7 @@ class LeaderboardManager {
   }
 
   Future<void> _persist() async {
+    if (!persistenceEnabled) return;
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(
       _entries.map((e) => e.toJson()).toList(),
